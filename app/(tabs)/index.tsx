@@ -334,13 +334,17 @@ export default function HomeScreen() {
   const callGemini = async (prompt: string) => {
     if (!isConnected) return "You're offline. Connect to internet for roasted insights.";
     try {
+      console.log("callGemini prompt:", prompt);
       const generateRoast = httpsCallable(functions, 'generateAiRoast');
       const result: any = await generateRoast({ prompt });
       console.log("generateAiRoast result:", result);
-      return result.data?.text || "AI is napping. Try later.";
-    } catch (error) {
+      return result?.data?.text || "AI is napping. Try later.";
+    } catch (error: any) {
+      // Log full details
       console.error("Cloud Function Error:", error);
-      return "AI brain freeze. Try again.";
+      console.error("Cloud Function error details:", error?.details || error?.message || error);
+      // Return helpful message for UI and devs
+      return "AI brain freeze. Check logs. (" + (error?.message || 'unknown error') + ")";
     }
   };
   // NEW: Budget UI state
@@ -909,33 +913,32 @@ const AiChatModal = ({ visible, onClose, transactions, isConnected, onGetRoast }
    const scrollViewRef = useRef<ScrollView>(null);
  
    const handleSend = async () => {
-     if (!input.trim()) return;
-     const userMsg = { id: Date.now(), text: input, isBot: false };
-     setMessages(prev => [...prev, userMsg]);
-     setInput('');
-     
-     if (!isConnected) {
-       setTimeout(() => {
-         setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
-       }, 500);
-       return;
+     try {
+       if (!input.trim()) return;
+       const userMsg = { id: Date.now(), text: input, isBot: false };
+       setMessages(prev => [...prev, userMsg]);
+       setInput('');
+       if (!isConnected) {
+         setTimeout(() => {
+           setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
+         }, 500);
+         return;
+       }
+       setLoading(true);
+       const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
+       const prompt = `You are a Gen-Z financial advisor. My recent transactions: ${txSummary}. User Question: "${userMsg.text}" Keep your answer short, helpful, and use emojis.`;
+       const response = await onGetRoast(prompt);
+       if (response) {
+         setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
+       } else {
+         setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
+       }
+     } catch (err) {
+       console.error("handleSend error:", err);
+       setMessages(prev => [...prev, { id: Date.now() + 1, text: "Something broke. Try again later.", isBot: true }]);
+     } finally {
+       setLoading(false);
      }
- 
-     setLoading(true);
- 
-     const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
-     const prompt = `You are a Gen-Z financial advisor. 
-     My recent transactions: ${txSummary}.
-     User Question: "${userMsg.text}"
-     Keep your answer short, helpful, and use emojis.`;
- 
-    const response = await onGetRoast(prompt);
-     if (response) {
-       setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
-     } else {
-       setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
-     }
-     setLoading(false);
    };
  
    return (
