@@ -9,6 +9,7 @@ import { JSX } from 'react/jsx-runtime';
 
 /**
  * AnimatedFab
+ * Test comment
  * - Center action to quickly add a transaction
  * - Pulses gently and gives haptic feedback on press.
  * - Meant to be used as the tabBarIcon for the "add" route.
