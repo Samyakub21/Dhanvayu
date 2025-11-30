@@ -333,13 +333,11 @@ export default function HomeScreen() {
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
   const callGemini = async (prompt: string) => {
     if (!isConnected) return "You're offline. Connect to internet for roasted insights.";
-    
     try {
-      // Call the Cloud Function securely
       const generateRoast = httpsCallable(functions, 'generateAiRoast');
       const result: any = await generateRoast({ prompt });
-      
-      return result.data.text || "AI is napping. Try later.";
+      console.log("generateAiRoast result:", result);
+      return result.data?.text || "AI is napping. Try later.";
     } catch (error) {
       console.error("Cloud Function Error:", error);
       return "AI brain freeze. Try again.";

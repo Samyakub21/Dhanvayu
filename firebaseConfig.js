@@ -51,7 +51,7 @@ try {
 }
 
 // Initialize Functions
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'us-central1'); // replace with region where you deployed generateAiRoast
 
 export { auth, db, functions };
 
