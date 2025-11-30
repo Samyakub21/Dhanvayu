@@ -7,10 +7,9 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from "firebase/firestore";
-import { getFunctions } from "firebase/functions"; // <--- Required for AI
+import { getFunctions } from "firebase/functions"; // <--- Important
 import { Platform } from "react-native";
 
-// Access environment variables
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -20,7 +19,7 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// 1. Initialize Firebase App (Singleton Pattern)
+// Initialize App
 let app;
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
@@ -28,7 +27,7 @@ if (getApps().length === 0) {
   app = getApp();
 }
 
-// 2. Initialize Auth
+// Initialize Auth
 let auth;
 if (Platform.OS === "web") {
   auth = getAuth(app);
@@ -38,24 +37,21 @@ if (Platform.OS === "web") {
   });
 }
 
-// 3. Initialize Firestore (Safe Mode)
+// Initialize Firestore (Safe Mode)
 let db;
-const cacheOptions =
-  Platform.OS === "web"
-    ? { tabManager: persistentMultipleTabManager(), storage: AsyncStorage }
-    : { storage: AsyncStorage };
-
 try {
-  // Try to initialize with custom cache settings
   db = initializeFirestore(app, {
-    localCache: persistentLocalCache(cacheOptions),
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+      storage: AsyncStorage
+    }),
   });
 } catch (e) {
-  // If already initialized (e.g. during reload), just use the existing instance
-  db = getFirestore(app);
+  db = getFirestore(app); // Fallback if already initialized
 }
 
-// 4. Initialize Functions (For AI Features)
+// Initialize Functions
 const functions = getFunctions(app);
 
 export { auth, db, functions };
+

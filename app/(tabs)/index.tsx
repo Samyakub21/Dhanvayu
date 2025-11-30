@@ -1,46 +1,86 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View, Text, StatusBar, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Modal, ScrollView, Alert, Linking,
-  KeyboardAvoidingView, Platform, AppState, Vibration, Switch, Dimensions
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Coffee, Car, ShoppingBag, Smartphone, Zap, Film, Wallet,
-  Languages, LogOut, Plus, Shield, ArrowUpRight, X,
-  Sparkles, MessageSquare, Send, Megaphone, AlertCircle, WifiOff, Lock, Delete, Fingerprint, Edit2, Repeat, Calendar
-} from 'lucide-react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as LocalAuthentication from 'expo-local-authentication';
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Calendar,
+  Car,
+  Coffee,
+  Delete,
+  Edit2,
+  Film,
+  Fingerprint,
+  Languages,
+  Lock,
+  LogOut,
+  Megaphone,
+  MessageSquare,
+  Plus,
+  Repeat,
+  Send,
+  Shield,
+  ShoppingBag, Smartphone,
+  Sparkles,
+  Wallet,
+  WifiOff,
+  X,
+  Zap
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar, StyleSheet,
+  Switch,
+  Text,
+  TextInput, TouchableOpacity,
+  Vibration,
+  View
+} from 'react-native';
 // Add useFocusEffect to the imports
-import { useFocusEffect } from 'expo-router';
 
 // AUTH & FIREBASE
-import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 
-import { 
-  GoogleAuthProvider, 
+// Add 'functions' to your firebaseConfig import
+import { httpsCallable } from 'firebase/functions';
+import { auth, db, functions } from '../../firebaseConfig';
+
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithCredential,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut 
+  signOut
 } from 'firebase/auth';
 
 import {
-  collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, updateDoc, where, getDocs, setDoc
+  addDoc,
+  collection,
+  deleteDoc, doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc, where
 } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig'; 
+ 
 
 // NEW: Notifications
-import * as Notifications from 'expo-notifications';
-import { sendLocalNotification, registerForPushNotificationsAsync } from '../../services/notifications';
+import { registerForPushNotificationsAsync, sendLocalNotification } from '../../services/notifications';
 
 // --- 🔑 SECURE KEYS ---
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const GOOGLE_WEB_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const GOOGLE_ANDROID_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
@@ -92,22 +132,6 @@ const getGreeting = (lang: any) => {
   if (hour < 12) return "Good Morning";
   if (hour < 18) return "Good Afternoon";
   return "Good Evening";
-};
-
-const callGemini = async (prompt: any) => {
-  if (!GEMINI_API_KEY) return "Config Error: API Key missing in .env";
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "AI is napping. Try later.";
-  } catch (error) {
-    console.error(error);
-    return null; 
-  }
 };
 
 // --- HELPER: CALCULATE NEXT DUE DATE ---
@@ -307,7 +331,20 @@ export default function HomeScreen() {
   const [showAiChat, setShowAiChat] = useState(false);
   const [riskProfile, setRiskProfile] = useState('moderate');
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
-
+  const callGemini = async (prompt: string) => {
+    if (!isConnected) return "You're offline. Connect to internet for roasted insights.";
+    
+    try {
+      // Call the Cloud Function securely
+      const generateRoast = httpsCallable(functions, 'generateAiRoast');
+      const result: any = await generateRoast({ prompt });
+      
+      return result.data.text || "AI is napping. Try later.";
+    } catch (error) {
+      console.error("Cloud Function Error:", error);
+      return "AI brain freeze. Try again.";
+    }
+  };
   // NEW: Budget UI state
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
@@ -847,7 +884,13 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       <AddModal visible={showAddModal} onClose={closeModal} onSave={handleSave} initialData={editingTx} currencySymbol={currencySymbol} />
-      <AiChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} transactions={transactions} isConnected={isConnected} />
+      <AiChatModal 
+        visible={showAiChat} 
+        onClose={() => setShowAiChat(false)} 
+        transactions={transactions} 
+        isConnected={isConnected} 
+        onGetRoast={callGemini} 
+      />
 
       {/* NEW: Budget modal */}
       <BudgetModal
@@ -861,78 +904,78 @@ export default function HomeScreen() {
   );
 }
 
-const AiChatModal = ({ visible, onClose, transactions, isConnected }: { visible: any, onClose: any, transactions: any, isConnected: any }) => {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([{ id: 1, text: "Yo! I'm DhanVayu AI. Ask me about your spending or how to get rich.", isBot: true }]);
-  const [loading, setLoading] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    const userMsg = { id: Date.now(), text: input, isBot: false };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    
-    if (!isConnected) {
-      setTimeout(() => {
-        setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
-      }, 500);
-      return;
-    }
-
-    setLoading(true);
-
-    const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
-    const prompt = `You are a Gen-Z financial advisor. 
-    My recent transactions: ${txSummary}.
-    User Question: "${userMsg.text}"
-    Keep your answer short, helpful, and use emojis.`;
-
-    const response = await callGemini(prompt);
-    if (response) {
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
-    } else {
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        <View style={styles.aiHeader}>
-          <Text style={styles.chatTitle}>Ask DhanVayu 🤖</Text>
-          <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
-        </View>
-        <ScrollView 
-          style={styles.chatBody} 
-          contentContainerStyle={{padding: 20, paddingBottom: 40}}
-          ref={scrollViewRef}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({animated: true})}
-        >
-          {messages.map(msg => (
-            <View key={msg.id} style={[styles.msgBubble, msg.isBot ? styles.botBubble : styles.userBubble]}>
-              <Text style={msg.isBot ? styles.btnText : styles.userText}>{msg.text}</Text>
-            </View>
-          ))}
-          {loading && <ActivityIndicator color={THEME.accent} style={{alignSelf: 'flex-start', marginLeft: 20}} />}
-        </ScrollView>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatInputArea}>
-          <TextInput 
-            style={styles.chatInput} 
-            placeholder={isConnected ? "Ask anything..." : "Offline mode..."}
-            placeholderTextColor="#71717a"
-            value={input}
-            onChangeText={setInput}
-            editable={isConnected ? true : false}
-          />
-          <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && {backgroundColor: '#3f3f46'}]} disabled={!isConnected}>
-            <Send size={20} color={isConnected ? "white" : "#71717a"} />
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
+const AiChatModal = ({ visible, onClose, transactions, isConnected, onGetRoast }: { visible: any, onClose: any, transactions: any, isConnected: any, onGetRoast: (prompt: string) => Promise<string> }) => {
+   const [input, setInput] = useState('');
+   const [messages, setMessages] = useState([{ id: 1, text: "Yo! I'm DhanVayu AI. Ask me about your spending or how to get rich.", isBot: true }]);
+   const [loading, setLoading] = useState(false);
+   const scrollViewRef = useRef<ScrollView>(null);
+ 
+   const handleSend = async () => {
+     if (!input.trim()) return;
+     const userMsg = { id: Date.now(), text: input, isBot: false };
+     setMessages(prev => [...prev, userMsg]);
+     setInput('');
+     
+     if (!isConnected) {
+       setTimeout(() => {
+         setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
+       }, 500);
+       return;
+     }
+ 
+     setLoading(true);
+ 
+     const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
+     const prompt = `You are a Gen-Z financial advisor. 
+     My recent transactions: ${txSummary}.
+     User Question: "${userMsg.text}"
+     Keep your answer short, helpful, and use emojis.`;
+ 
+    const response = await onGetRoast(prompt);
+     if (response) {
+       setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
+     } else {
+       setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
+     }
+     setLoading(false);
+   };
+ 
+   return (
+     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+       <View style={styles.container}>
+         <View style={styles.aiHeader}>
+           <Text style={styles.chatTitle}>Ask DhanVayu 🤖</Text>
+           <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
+         </View>
+         <ScrollView 
+           style={styles.chatBody} 
+           contentContainerStyle={{padding: 20, paddingBottom: 40}}
+           ref={scrollViewRef}
+           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({animated: true})}
+         >
+           {messages.map(msg => (
+             <View key={msg.id} style={[styles.msgBubble, msg.isBot ? styles.botBubble : styles.userBubble]}>
+               <Text style={msg.isBot ? styles.btnText : styles.userText}>{msg.text}</Text>
+             </View>
+           ))}
+           {loading && <ActivityIndicator color={THEME.accent} style={{alignSelf: 'flex-start', marginLeft: 20}} />}
+         </ScrollView>
+         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatInputArea}>
+           <TextInput 
+             style={styles.chatInput} 
+             placeholder={isConnected ? "Ask anything..." : "Offline mode..."}
+             placeholderTextColor="#71717a"
+             value={input}
+             onChangeText={setInput}
+             editable={isConnected ? true : false}
+           />
+           <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && {backgroundColor: '#3f3f46'}]} disabled={!isConnected}>
+             <Send size={20} color={isConnected ? "white" : "#71717a"} />
+           </TouchableOpacity>
+         </KeyboardAvoidingView>
+       </View>
+     </Modal>
+   );
 };
 
 const InvestView = ({ t, riskProfile, setRiskProfile }: { t: any, riskProfile: any, setRiskProfile: any }) => (
