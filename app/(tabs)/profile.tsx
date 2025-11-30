@@ -4,8 +4,9 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Alert, Switch, ScrollView, TextInput, ActivityIndicator 
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser'
 import { 
-  User, Bell, DollarSign, Trash2, LogOut, ChevronRight, Save, Mail, ShieldAlert 
+  User, Bell, DollarSign, Trash2, LogOut, ChevronRight, Save, Mail, ShieldAlert, FileText, Shield
 } from 'lucide-react-native';
 import { auth, db } from '../../firebaseConfig';
 import { doc, onSnapshot, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
@@ -55,6 +56,15 @@ export default function ProfileScreen() {
       });
     } catch (e) {
       // Create if doesn't exist (handled by setDoc usually, but specific to your db structure)
+    }
+  };
+
+  // New helper to open links in external browser or apps
+  const handleOpenLink = async (url: string) => {
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch (e) {
+      Alert.alert("Error", "Could not open link");
     }
   };
 
@@ -185,6 +195,41 @@ export default function ProfileScreen() {
               <ChevronRight size={16} color={THEME.subText} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* LEGAL SECTION */}
+        <Text style={styles.sectionTitle}>Legal & About</Text>
+        <View style={styles.card}>
+          
+          {/* Privacy Policy */}
+          <TouchableOpacity 
+            style={styles.settingRow} 
+            onPress={() => handleOpenLink('https://sites.google.com/view/dhanvayu/privacy-policy')}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}> 
+                <Shield size={20} color="#3b82f6" />
+              </View>
+              <Text style={styles.settingLabel}>Privacy Policy</Text>
+            </View>
+            <ChevronRight size={16} color={THEME.subText} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          {/* Terms of Service */}
+          <TouchableOpacity 
+            style={styles.settingRow} 
+            onPress={() => handleOpenLink('https://sites.google.com/view/dhanvayu/terms-of-service')}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconBox, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                <FileText size={20} color="#a855f7" />
+              </View>
+              <Text style={styles.settingLabel}>Terms of Service</Text>
+            </View>
+            <ChevronRight size={16} color={THEME.subText} />
+          </TouchableOpacity>
         </View>
 
         {/* DANGER ZONE */}
