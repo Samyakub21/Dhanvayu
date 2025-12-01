@@ -1,50 +1,132 @@
-# Welcome to your Expo app 👋
+# DhanVayu 💸
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**DhanVayu** is a modern, Gen-Z focused personal finance tracker built with **Expo** and **React Native**. It goes beyond simple expense logging by offering AI-powered financial "roasts" (insights), recurring bill management, and investment tracking, all wrapped in a sleek, neon-themed UI.
 
-## Get started
+<div align="center">
+  <img src="./assets/images/icon.png" width="100" />
+  <br/>
+  <b>Track. Save. Invest. Vibe.</b>
+</div>
 
-1. Install dependencies
+## 🚀 Features
 
-   ```bash
-   npm install
-   ```
+* **Vibe-Based Tracking**: Log expenses and income with categories like "Munchies" ☕, "Drip" 🛍️, and "Vibes" 🎬.
+* **AI Financial Advisor 🤖**: Integrated with **Google Gemini** to provide roasted insights and advice based on your spending habits.
+* **Smart Security 🔒**: Biometric authentication (Fingerprint/FaceID) and PIN lock support.
+* **Offline First 📶**: Full offline support. Transactions sync seamlessly to Firebase when internet connectivity returns.
+* **Recurring Payments 🔄**: Automatic detection and processing of recurring bills with "Due Tomorrow" notifications.
+* **Budget & Limits 🎯**: Set monthly category limits and get alerted when you're about to break the bank.
+* **Multi-Language Support 🌐**: Switch instantly between English and Hindi.
+* **Authentication**: Secure login via Email/Password or **Google Sign-In**.
 
-2. Start the app
+## 🛠️ Tech Stack
 
-   ```bash
-   npx expo start
-   ```
+* **Framework**: [Expo](https://expo.dev/) (React Native)
+* **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based routing)
+* **Backend & Database**: [Firebase](https://firebase.google.com/) (Auth, Firestore, Cloud Functions)
+* **AI Engine**: Google Gemini (via Cloud Functions/Proxy)
+* **UI/UX**: `lucide-react-native` icons, `expo-linear-gradient`, `expo-haptics`
+* **Ads**: `react-native-google-mobile-ads` (AdMob integration ready)
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 📂 Project Structure
 
 ```bash
-npm run reset-project
-```
+dhanvayu/
+├── app/                  # Expo Router screens
+│   ├── (tabs)/           # Main tab navigation (Home, Explore, Insights, Profile)
+│   ├── _layout.tsx       # Root layout & Theme provider
+│   └── ...
+├── components/           # Reusable UI components (ThemedText, GradientCards)
+├── context/              # React Context (User data, Settings)
+├── services/             # Background services (Notifications)
+├── functions/            # Firebase Cloud Functions (TypeScript)
+├── assets/               # Images and Fonts
+└── firebaseConfig.js     # Firebase client configuration
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-## Learn more
+⚡ Getting Started
+Prerequisites
+Node.js (LTS recommended)
 
-To learn more about developing your project with Expo, look at the following resources:
+npm or yarn
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Expo CLI (npm install -g expo-cli)
 
-## Join the community
+A Firebase Project
 
-Join our community of developers creating universal apps.
+Installation
+Clone the repository
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Bash
+
+git clone [https://github.com/Samyakub21/my-expo-app.git](https://github.com/Samyakub21/my-expo-app.git)
+cd my-expo-app
+Install dependencies
+
+Bash
+
+npm install
+# or
+yarn install
+Configure Environment Variables Create a .env file in the root directory and add your Google Auth Client IDs:
+
+Code snippet
+
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your-android-client-id
+Setup Firebase
+
+Create a project in the Firebase Console.
+
+Enable Authentication (Email/Password & Google).
+
+Enable Firestore Database.
+
+Add your firebaseConfig.js file to the root directory.
+
+Run the App
+
+Bash
+
+npx expo start
+Press a for Android Emulator.
+
+Press i for iOS Simulator.
+
+Scan the QR code with the Expo Go app on your physical device.
+
+📱 Build & Deploy
+This project is configured for EAS Build.
+
+Install EAS CLI
+
+Bash
+
+npm install -g eas-cli
+Login to Expo
+
+Bash
+
+eas login
+Build for Android/iOS
+
+Bash
+
+eas build --profile development --platform android
+# or
+eas build --profile development --platform ios
+🤝 Contributing
+Contributions are welcome! Please fork the repository and submit a pull request.
+
+Fork the Project
+
+Create your Feature Branch (git checkout -b feature/AmazingFeature)
+
+Commit your Changes (git commit -m 'Add some AmazingFeature')
+
+Push to the Branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+
+📄 License
+This project is licensed under the ISC License.
