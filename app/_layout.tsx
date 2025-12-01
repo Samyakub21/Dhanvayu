@@ -1,18 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, Text, ActivityIndicator, AppState, StyleSheet, 
-  TouchableOpacity, TextInput, Alert, Vibration, StatusBar 
-} from 'react-native';
-import { Stack } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Lock, Fingerprint, Sparkles, Delete } from 'lucide-react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
-import { 
-  GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, onAuthStateChanged 
+import * as Google from 'expo-auth-session/providers/google';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Stack } from 'expo-router';
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential, signInWithEmailAndPassword
 } from 'firebase/auth';
+import { Delete, Fingerprint, Lock, Sparkles } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Vibration,
+  View
+} from 'react-native';
+import { UserProvider } from '../context/UserContext';
 import { auth } from '../firebaseConfig'; // Adjust path if needed
 
 // --- CONSTANTS ---
@@ -156,15 +167,21 @@ export default function RootLayout() {
       setLoading(false);
       if(!u) setIsLocked(false);
     });
-
-    const sub = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/active/) && nextAppState === 'background') {
-        if (auth.currentUser) setIsLocked(true);
+    
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+         // App came to foreground
+      } else if (nextAppState.match(/inactive|background/)) {
+         // App went to background -> Lock it
+         if (auth.currentUser) setIsLocked(true);
       }
       appState.current = nextAppState;
     });
 
-    return () => { unsub(); sub.remove(); };
+    return () => {
+      unsub();
+      subscription.remove();
+    };
   }, []);
 
   if (loading) return <View style={styles.container}><ActivityIndicator size="large" color={THEME.accent} /></View>;
@@ -174,9 +191,11 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar barStyle="light-content" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <UserProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </UserProvider>
     </>
   );
 }

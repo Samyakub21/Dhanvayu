@@ -16,7 +16,6 @@ import {
   Languages,
   Lock,
   LogOut,
-  Megaphone,
   MessageSquare,
   Plus,
   Repeat,
@@ -77,7 +76,9 @@ import {
  
 
 // NEW: Notifications
+// import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { registerForPushNotificationsAsync, sendLocalNotification } from '../../services/notifications';
+import { useUser } from '../../context/UserContext'; // ADD THIS IMPORT
 
 // --- 🔑 SECURE KEYS ---
 const GOOGLE_WEB_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -98,6 +99,9 @@ const THEME = {
   danger: '#ef4444',
   warning: '#f59e0b',
 };
+
+// Ad Unit ID — use TestIds.BANNER in dev to avoid policy issues
+//const adUnitId: string = __DEV__ ? TestIds.BANNER : 'ca-app-pub-2729715073425515/6271945631';
 
 const CATEGORIES = [
   { id: 'food', label: 'Munchies', icon: Coffee, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
@@ -320,8 +324,8 @@ export default function HomeScreen() {
   // 1. Create local state for the name so React knows when to re-render
   const [displayName, setDisplayName] = useState(user?.displayName || '');
 
-  // NEW: currency symbol state (default: INR)
-  const [currencySymbol, setCurrencySymbol] = useState('₹');
+  // Use global currency symbol from context
+  const { symbol: currencySymbol } = useUser();
 
   const [lang, setLang] = useState('en');
   const [activeTab] = useState('dashboard');
@@ -650,18 +654,6 @@ export default function HomeScreen() {
     }).filter(c => c.spent > 0 || c.limit > 0); // Show categories with spending or budgets set
   }, [transactions, budgets]);
 
-  // Listen for user preference changes (currency)
-  useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(doc(db, 'users', user.uid, 'settings', 'preferences'), (snap) => {
-      if (snap.exists()) {
-        const code = snap.data().currency || 'INR';
-        setCurrencySymbol(code === 'USD' ? '$' : code === 'EUR' ? '€' : '₹');
-      }
-    });
-    return unsub;
-  }, [user]);
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -870,14 +862,18 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.adBanner}>
-        <Text style={styles.adText}>AD</Text>
-        <View style={{marginLeft: 10}}>
-          <Text style={[styles.adText, {fontWeight: 'bold'}]}>Start Trading Today</Text>
-          <Text style={[styles.adText, {fontSize: 10, color: '#a1a1aa'}]}>Sponsored by Your Broker</Text>
-        </View>
-        <Megaphone size={16} color="white" style={{marginLeft:'auto'}} />
+      {/* AdMob Banner */}
+      {/*
+      <View style={styles.adContainer}>
+        <BannerAd
+          unitId={__DEV__ ? TestIds.BANNER : adUnitId} // use TestIds.BANNER during development
+          size={BannerAdSize.BANNER} // CORRECT: use 'size' prop and a valid BannerAdSize
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
       </View>
+      */}
 
       <TouchableOpacity activeOpacity={0.8} onPress={() => { setEditingTx(null); setShowAddModal(true); }} style={styles.fabShadow}>
         <LinearGradient colors={['#22d3ee', '#3b82f6']} style={styles.fab}>
@@ -1325,8 +1321,16 @@ const styles = StyleSheet.create({
   txTitle: { fontWeight: '700', color: 'white', fontSize: 16 },
   txDate: { fontSize: 12, color: '#71717a', marginTop: 2 },
   txAmt: { fontWeight: 'bold', fontSize: 16, color: THEME.text },
-  adBanner: { position: 'absolute', bottom: 90, left: 20, right: 20, height: 50, backgroundColor: '#18181b', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: '#3f3f46', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
-  adText: { color: 'white', fontSize: 12 },
+  //adBanner: { position: 'absolute', bottom: 90, left: 20, right: 20, height: 50, backgroundColor: '#18181b', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: '#3f3f46', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
+
+  // NEW: Ad container for BannerAd component
+  //adContainer: {
+   // alignItems: 'center',
+    //justifyContent: 'center',
+    //marginVertical: 20,
+    //width: '100%',
+    //minHeight: 50, // optional: reserve space while loading
+  //},
   fab: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   fabShadow: { position: 'absolute', bottom: 150, right: 20, shadowColor: '#22d3ee', shadowOpacity: 0.5, elevation: 10, shadowRadius: 15 },
   floatingNavWrapper: { position: 'absolute', bottom: 30, width: '100%', alignItems: 'center' },
@@ -1418,7 +1422,7 @@ const styles = StyleSheet.create({
     },
     affiliateIconBox: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     affiliateName: { color: 'white', fontWeight: '700', fontSize: 14 },
-    affiliateDesc: { color: '#a1a1aa', fontSize: 12 },
+    affiliateDesc: { color: '#a1a1aa', fontSize:  12 },
     affiliateBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
     affiliateBtnText: { color: 'white', fontWeight: '700' }
   });
