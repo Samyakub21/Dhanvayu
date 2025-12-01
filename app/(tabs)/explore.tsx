@@ -36,6 +36,10 @@ import {
   ActivityIndicator,
   Alert,
   FlatList, KeyboardAvoidingView,
+  Linking // <--- ADDED LINKING
+  ,
+
+
   Modal,
   Platform,
   ScrollView,
@@ -774,29 +778,50 @@ const GroupInfoModal = ({ visible, onClose, chat, userId }: any) => {
 const NewChatModal = ({ visible, onClose, user }: any) => {
   const [name, setName] = useState('');
   const [mode, setMode] = useState('friend');
-  const [error, setError] = useState('');
 
   const handleCreate = async () => {
-     if(!name.trim()) {
-       setError('Name is required');
-       return;
-     }
+     if(!name) return;
      const color = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6'][Math.floor(Math.random()*5)];
      await addDoc(collection(db, 'users', user.uid, 'chats'), {
-       name: name.trim(), type: mode, members: [], avatarColor: color, balance: 0, lastActive: serverTimestamp()
+       name, type: mode, members: [], avatarColor: color, balance: 0, lastActive: serverTimestamp()
      });
-     onClose(); setName(''); setError('');
+     onClose(); setName('');
   }
+
+  // --- UPDATED CONTACT PERMISSION HANDLING ---
   const importContact = async () => {
-     const { status } = await Contacts.requestPermissionsAsync();
-     if (status === 'granted') {
-       const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name] });
-       if (data.length > 0) {
-         setName(data[0].name); 
-         setError('');
+     try {
+       const { status, canAskAgain } = await Contacts.requestPermissionsAsync();
+       
+       if (status === 'granted') {
+         const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name] });
+         if (data.length > 0) {
+           // Currently just grabs the first contact as a placeholder. 
+           // In a real app, you'd likely show a list here.
+           setName(data[0].name); 
+         } else {
+           Alert.alert("No Contacts", "Your contact list appears to be empty.");
+         }
+       } else {
+         // Handle Denial Gracefully
+         Alert.alert(
+           "Permission Required",
+           "We need access to your contacts to find your friends easily.",
+           [
+             { text: "Cancel", style: "cancel" },
+             { 
+               text: "Open Settings", 
+               onPress: () => Linking.openSettings() // Works on both Android & iOS
+             }
+           ]
+         );
        }
+     } catch (e) {
+       console.log(e);
+       Alert.alert("Error", "Something went wrong fetching contacts.");
      }
   }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.modalContainer}>
@@ -807,15 +832,15 @@ const NewChatModal = ({ visible, onClose, user }: any) => {
         </View>
         <View style={styles.formGroup}>
           <Text style={styles.label}>Name</Text>
-          <TextInput 
-            style={[styles.input, error ? {borderColor: THEME.danger} : {}]} 
-            placeholder="Name" 
-            placeholderTextColor="#52525b" 
-            value={name} 
-            onChangeText={(t) => {setName(t); setError('');}} 
-          />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {mode === 'friend' && <TouchableOpacity onPress={importContact}><Text style={{color: THEME.primary, marginTop:5}}>Import from Contacts</Text></TouchableOpacity>}
+          <TextInput style={styles.input} placeholder="Name" placeholderTextColor="#52525b" value={name} onChangeText={setName} />
+          
+          {/* Import Button */}
+          {mode === 'friend' && (
+            <TouchableOpacity onPress={importContact} style={{flexDirection: 'row', alignItems: 'center', marginTop: 5}}>
+              <Users size={14} color={THEME.primary} style={{marginRight: 4}} />
+              <Text style={{color: THEME.primary, fontWeight: '600'}}>Import from Contacts</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <TouchableOpacity style={styles.saveBtn} onPress={handleCreate}><Text style={styles.saveBtnText}>Create</Text></TouchableOpacity>
         <TouchableOpacity onPress={onClose} style={{marginTop:20, alignItems:'center'}}><Text style={{color:'#71717a'}}>Cancel</Text></TouchableOpacity>
