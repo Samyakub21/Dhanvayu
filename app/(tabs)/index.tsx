@@ -53,8 +53,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 
 // Add 'functions' to your firebaseConfig import
-import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '../../firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
 
 import {
   createUserWithEmailAndPassword,
@@ -334,17 +333,18 @@ export default function HomeScreen() {
   const callGemini = async (prompt: string) => {
     if (!isConnected) return "You're offline. Connect to internet for roasted insights.";
     try {
-      console.log("callGemini prompt:", prompt);
-      const generateRoast = httpsCallable(functions, 'generateAiRoast');
-      const result: any = await generateRoast({ prompt });
-      console.log("generateAiRoast result:", result);
-      return result?.data?.text || "AI is napping. Try later.";
-    } catch (error: any) {
-      // Log full details
-      console.error("Cloud Function Error:", error);
-      console.error("Cloud Function error details:", error?.details || error?.message || error);
-      // Return helpful message for UI and devs
-      return "AI brain freeze. Check logs. (" + (error?.message || 'unknown error') + ")";
+      const response = await fetch('https://gemini-proxy-pi-steel.vercel.app/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await response.json();
+      return data.text || "AI is napping. Try later.";
+    } catch (error) {
+      console.error("Proxy Error:", error);
+      return "AI brain freeze. Try again.";
     }
   };
   // NEW: Budget UI state
@@ -906,78 +906,77 @@ export default function HomeScreen() {
   );
 }
 
-const AiChatModal = ({ visible, onClose, transactions, isConnected, onGetRoast }: { visible: any, onClose: any, transactions: any, isConnected: any, onGetRoast: (prompt: string) => Promise<string> }) => {
-   const [input, setInput] = useState('');
-   const [messages, setMessages] = useState([{ id: 1, text: "Yo! I'm DhanVayu AI. Ask me about your spending or how to get rich.", isBot: true }]);
-   const [loading, setLoading] = useState(false);
-   const scrollViewRef = useRef<ScrollView>(null);
- 
-   const handleSend = async () => {
-     try {
-       if (!input.trim()) return;
-       const userMsg = { id: Date.now(), text: input, isBot: false };
-       setMessages(prev => [...prev, userMsg]);
-       setInput('');
-       if (!isConnected) {
-         setTimeout(() => {
-           setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
-         }, 500);
-         return;
-       }
-       setLoading(true);
-       const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
-       const prompt = `You are a Gen-Z financial advisor. My recent transactions: ${txSummary}. User Question: "${userMsg.text}" Keep your answer short, helpful, and use emojis.`;
-       const response = await onGetRoast(prompt);
-       if (response) {
-         setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
-       } else {
-         setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
-       }
-     } catch (err) {
-       console.error("handleSend error:", err);
-       setMessages(prev => [...prev, { id: Date.now() + 1, text: "Something broke. Try again later.", isBot: true }]);
-     } finally {
-       setLoading(false);
-     }
-   };
- 
-   return (
-     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-       <View style={styles.container}>
-         <View style={styles.aiHeader}>
-           <Text style={styles.chatTitle}>Ask DhanVayu 🤖</Text>
-           <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
-         </View>
-         <ScrollView 
-           style={styles.chatBody} 
-           contentContainerStyle={{padding: 20, paddingBottom: 40}}
-           ref={scrollViewRef}
-           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({animated: true})}
-         >
-           {messages.map(msg => (
-             <View key={msg.id} style={[styles.msgBubble, msg.isBot ? styles.botBubble : styles.userBubble]}>
-               <Text style={msg.isBot ? styles.btnText : styles.userText}>{msg.text}</Text>
-             </View>
-           ))}
-           {loading && <ActivityIndicator color={THEME.accent} style={{alignSelf: 'flex-start', marginLeft: 20}} />}
-         </ScrollView>
-         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatInputArea}>
-           <TextInput 
-             style={styles.chatInput} 
-             placeholder={isConnected ? "Ask anything..." : "Offline mode..."}
-             placeholderTextColor="#71717a"
-             value={input}
-             onChangeText={setInput}
-             editable={isConnected ? true : false}
-           />
-           <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && {backgroundColor: '#3f3f46'}]} disabled={!isConnected}>
-             <Send size={20} color={isConnected ? "white" : "#71717a"} />
-           </TouchableOpacity>
-         </KeyboardAvoidingView>
-       </View>
-     </Modal>
-   );
-};
+const AiChatModal = ({ visible, onClose, transactions, isConnected, onGetRoast }: { visible: any; onClose: any; transactions: any; isConnected: any; onGetRoast: any; }): React.JSX.Element => {
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([{ id: 1, text: "Yo! I'm DhanVayu AI. Ask me about your spending or how to get rich.", isBot: true }]);
+  const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleSend = async () => {
+    try {
+      if (!input.trim()) return;
+      const userMsg = { id: Date.now(), text: input, isBot: false };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+      if (!isConnected) {
+        setTimeout(() => {
+          setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
+        }, 500);
+        return;
+      }
+      setLoading(true);
+      const txSummary = transactions.slice(0, 10).map((t: any) => `${t.title} (${t.amount})`).join(', ');
+      const prompt = `You are a Gen-Z financial advisor. My recent transactions: ${txSummary}. User Question: "${userMsg.text}" Keep your answer short, helpful, and use emojis.`;
+      const response = await onGetRoast(prompt);
+      if (response) {
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
+      } else {
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
+      }
+    } catch (err) {
+      console.error("handleSend error:", err);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Something broke. Try again later.", isBot: true }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.container}>
+        <View style={styles.aiHeader}>
+          <Text style={styles.chatTitle}>Ask DhanVayu 🤖</Text>
+          <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
+        </View>
+        <ScrollView
+          style={styles.chatBody}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          ref={scrollViewRef}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
+          {messages.map(msg => (
+            <View key={msg.id} style={[styles.msgBubble, msg.isBot ? styles.botBubble : styles.userBubble]}>
+              <Text style={msg.isBot ? styles.btnText : styles.userText}>{msg.text}</Text>
+            </View>
+          ))}
+          {loading && <ActivityIndicator color={THEME.accent} style={{ alignSelf: 'flex-start', marginLeft: 20 }} />}
+        </ScrollView>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatInputArea}>
+          <TextInput
+            style={styles.chatInput}
+            placeholder={isConnected ? "Ask anything..." : "Offline mode..."}
+            placeholderTextColor="#71717a"
+            value={input}
+            onChangeText={setInput}
+            editable={isConnected ? true : false} />
+          <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && { backgroundColor: '#3f3f46' }]} disabled={!isConnected}>
+            <Send size={20} color={isConnected ? "white" : "#71717a"} />
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
 
 const InvestView = ({ t, riskProfile, setRiskProfile }: { t: any, riskProfile: any, setRiskProfile: any }) => (
   <View style={styles.content}>

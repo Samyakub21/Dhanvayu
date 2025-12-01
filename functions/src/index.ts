@@ -3,12 +3,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as logger from "firebase-functions/logger";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
-// 1. Initialize Gemini with the key from environment variables
-// IMPORTANT: Set this using: firebase functions:secrets:set GEMINI_API_KEY
+// Import dotenv to load .env.local (for local dev/Vercel)
+// Make sure to install dotenv: npm install dotenv
+import * as dotenv from "dotenv";
+dotenv.config({ path: '.env.local' });
+
+// Use the API key from environment variables (Vercel injects them automatically in prod)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export const generateAiRoast = onCall({ cors: true }, async (request) => {
-  // 2. Check if user is authenticated (Optional but recommended)
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in.");
   }
@@ -16,8 +19,7 @@ export const generateAiRoast = onCall({ cors: true }, async (request) => {
   const { prompt } = request.data;
 
   try {
-    // 3. Call Gemini Securely
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
