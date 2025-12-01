@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Add this
 import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +24,7 @@ import {
   Vibration,
   View
 } from 'react-native';
+import OnboardingScreen from '../components/OnboardingScreen'; // Add this (adjust path based on where you put it)
 import { UserProvider } from '../context/UserContext';
 import { auth } from '../firebaseConfig'; // Adjust path if needed
 
@@ -159,35 +161,64 @@ export default function RootLayout() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(true);
+  
+  // NEW STATE: Track onboarding status
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null); 
+  
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
+    checkOnboarding(); // Check on mount
+    
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
+      // Only stop loading once we know both Auth AND Onboarding status
+      if (hasSeenOnboarding !== null) setLoading(false); 
       if(!u) setIsLocked(false);
     });
-    
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-         // App came to foreground
-      } else if (nextAppState.match(/inactive|background/)) {
-         // App went to background -> Lock it
-         if (auth.currentUser) setIsLocked(true);
+
+    const sub = AppState.addEventListener('change', nextAppState => {
+      if (appState.current.match(/active/) && nextAppState === 'background') {
+        if (auth.currentUser) setIsLocked(true);
       }
       appState.current = nextAppState;
     });
 
-    return () => {
-      unsub();
-      subscription.remove();
-    };
-  }, []);
+    return () => { unsub(); sub.remove(); };
+  }, [hasSeenOnboarding]); // Depend on onboarding state to ensure loading clears correctly
 
-  if (loading) return <View style={styles.container}><ActivityIndicator size="large" color={THEME.accent} /></View>;
+  const checkOnboarding = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@dhanvayu_onboarded');
+      setHasSeenOnboarding(value === 'true');
+    } catch (e) {
+      setHasSeenOnboarding(false);
+    }
+  };
+
+  const handleOnboardingFinish = async () => {
+    await AsyncStorage.setItem('@dhanvayu_onboarded', 'true');
+    setHasSeenOnboarding(true);
+  };
+
+  if (loading || hasSeenOnboarding === null) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={THEME.accent} />
+      </View>
+    );
+  }
+
+  // 1. If not logged in -> Auth Screen
   if (!user) return <AuthScreen onLogin={setUser} />;
+
+  // 2. If logged in but hasn't seen onboarding -> Onboarding Screen
+  if (!hasSeenOnboarding) return <OnboardingScreen onFinish={handleOnboardingFinish} />;
+
+  // 3. If logged in, onboarded, but locked -> Lock Screen
   if (isLocked) return <LockScreen onUnlock={() => setIsLocked(false)} />;
 
+  // 4. Main App
   return (
     <>
       <StatusBar barStyle="light-content" />
