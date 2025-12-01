@@ -1,17 +1,38 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, StyleSheet, TouchableOpacity, Alert, Switch, ScrollView, TextInput, ActivityIndicator 
-} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser'
-import { 
-  User, Bell, DollarSign, Trash2, LogOut, ChevronRight, Save, Mail, ShieldAlert, FileText, Shield
-} from 'lucide-react-native';
-import { auth, db } from '../../firebaseConfig';
-import { doc, onSnapshot, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
-import { signOut, deleteUser, updateProfile } from 'firebase/auth';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { deleteUser, signOut, updateProfile } from 'firebase/auth';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import {
+  Bell,
+  Check, ChevronDown,
+  ChevronRight,
+  DollarSign,
+  FileText,
+  LogOut,
+  Megaphone,
+  Save, Shield,
+  Trash2,
+  User
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { auth, db } from '../../firebaseConfig';
+// IMPORT THE HOOK
+import { useUser } from '../../context/UserContext';
 
 const THEME = {
   bg: '#09090b',
@@ -23,49 +44,46 @@ const THEME = {
   border: '#3f3f46',
 };
 
+const CURRENCIES = [
+  { code: 'INR', label: 'Indian Rupee', symbol: '₹' },
+  { code: 'USD', label: 'US Dollar', symbol: '$' },
+  { code: 'EUR', label: 'Euro', symbol: '€' },
+  { code: 'GBP', label: 'British Pound', symbol: '£' },
+  { code: 'JPY', label: 'Japanese Yen', symbol: '¥' },
+];
+
 export default function ProfileScreen() {
   const user = auth.currentUser;
   const router = useRouter();
   
+  // USE GLOBAL CONTEXT
+  const { currency, setCurrency } = useUser();
+
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
-  
-  // Settings State
-  const [currency, setCurrency] = useState('INR'); // INR, USD, EUR
   const [notifications, setNotifications] = useState(true);
+  
+  // Dropdown State
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
-  // Load Settings from Firestore
+  // Load ONLY non-global settings locally (like notifications)
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid, 'settings', 'preferences'), (snap) => {
       if (snap.exists()) {
-        const data = snap.data();
-        setCurrency(data.currency || 'INR');
-        setNotifications(data.notificationsEnabled ?? true);
+        setNotifications(snap.data().notificationsEnabled ?? true);
       }
     });
     return unsub;
   }, [user]);
 
-  // Update Firestore Helper
   const updateSetting = async (field: string, value: any) => {
     if (!user) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid, 'settings', 'preferences'), {
-        [field]: value
-      });
-    } catch (e) {
-      // Create if doesn't exist (handled by setDoc usually, but specific to your db structure)
-    }
+    await updateDoc(doc(db, 'users', user.uid, 'settings', 'preferences'), { [field]: value }).catch(() => {});
   };
 
-  // New helper to open links in external browser or apps
   const handleOpenLink = async (url: string) => {
-    try {
-      await WebBrowser.openBrowserAsync(url);
-    } catch (e) {
-      Alert.alert("Error", "Could not open link");
-    }
+    try { await WebBrowser.openBrowserAsync(url); } catch (e) { Alert.alert("Error", "Could not open link"); }
   };
 
   const handleUpdateProfile = async () => {
@@ -74,16 +92,16 @@ export default function ProfileScreen() {
     try {
       await updateProfile(user, { displayName });
       Alert.alert("Success", "Profile updated!");
-    } catch (e) {
-      Alert.alert("Error", (e as Error).message);
-    }
+    } catch (e) { Alert.alert("Error", (e as Error).message); }
     setLoading(false);
   };
 
+  const handleLogout = async () => { await signOut(auth); };
+  
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account?",
-      "This is permanent. All your data (expenses, chats) will be wiped.",
+      "This is permanent. All your data will be wiped.",
       [
         { text: "Cancel", style: "cancel" },
         { 
@@ -92,16 +110,17 @@ export default function ProfileScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              // 1. Delete Firestore Data (Optional: Cloud Functions usually handle this)
-              // For client-side, we might just clear critical collections
-              // 2. Delete Auth
+              // If you want to proactively ask Cloud Functions to clean up first, you can call a callable function here.
+              // Otherwise, the onDelete trigger will run after deleteUser() completes.
               await deleteUser(user!);
-              // Router will auto-redirect to login due to auth state change
+              // signOut/navigation handled by auth listener on change
             } catch (e: any) {
+              // Re-auth required
               if (e.code === 'auth/requires-recent-login') {
-                Alert.alert("Security Check", "Please logout and login again to delete your account.");
+                Alert.alert('Security Check', 'Please re-login to delete your account. You can sign out and login again, then retry deletion.');
+                // Optional: show a reauth modal to capture credentials (see reauthenticateWithCredential example below).
               } else {
-                Alert.alert("Error", e.message);
+                Alert.alert("Error", e.message || 'Failed to delete account');
               }
             } finally {
               setLoading(false);
@@ -112,9 +131,19 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    // Navigation handled by auth listener in root
+  // Example reauth helper (if you collect password in a modal)
+  const reauthAndDelete = async (password: string) => {
+    if (!user?.email) return;
+    setLoading(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, password);
+      await reauthenticateWithCredential(user, credential);
+      await deleteUser(user);
+    } catch (err: any) {
+      Alert.alert('Re-auth failed', err.message || 'Unable to re-authenticate');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -126,7 +155,6 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        
         {/* PROFILE CARD */}
         <View style={styles.card}>
           <View style={styles.avatarSection}>
@@ -135,24 +163,37 @@ export default function ProfileScreen() {
             </View>
             <View>
                <Text style={styles.emailText}>{user?.email}</Text>
-               <Text style={styles.uidText}>ID: {user?.uid.slice(0, 8)}...</Text>
+               {/* ID removed for privacy */}
             </View>
           </View>
           
           <View style={styles.inputRow}>
             <User size={20} color={THEME.subText} />
             <TextInput 
-              style={styles.input} 
-              value={displayName} 
-              onChangeText={setDisplayName} 
-              placeholder="Display Name" 
-              placeholderTextColor="#52525b"
+              style={styles.input} value={displayName} onChangeText={setDisplayName} 
+              placeholder="Display Name" placeholderTextColor="#52525b"
             />
             <TouchableOpacity onPress={handleUpdateProfile} disabled={loading}>
               <Save size={20} color={THEME.primary} />
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* AD BANNER */}
+        <TouchableOpacity
+          style={styles.adBanner}
+          onPress={() => handleOpenLink('https://your-ad-link.example.com')}
+          activeOpacity={0.85}
+        >
+          <View style={{flexDirection:'row', alignItems:'center', gap:10}}>
+            <Megaphone size={20} color="#fbbf24" />
+            <View>
+              <Text style={{color:'white', fontWeight:'bold'}}>Upgrade to Pro</Text>
+              <Text style={{color:'#a1a1aa', fontSize:11}}>Remove ads & unlock themes</Text>
+            </View>
+          </View>
+          <ChevronRight size={16} color="#71717a" />
+        </TouchableOpacity>
 
         {/* SETTINGS SECTION */}
         <Text style={styles.sectionTitle}>App Settings</Text>
@@ -175,26 +216,20 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
-          {/* Currency */}
-          <View style={styles.settingRow}>
+          {/* CURRENCY DROPDOWN TRIGGER */}
+          <TouchableOpacity style={styles.settingRow} onPress={() => setShowCurrencyModal(true)}>
             <View style={styles.rowLeft}>
               <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
                 <DollarSign size={20} color="#22c55e" />
               </View>
               <Text style={styles.settingLabel}>Currency</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.currencyBtn}
-              onPress={() => {
-                const next = currency === 'INR' ? 'USD' : currency === 'USD' ? 'EUR' : 'INR';
-                setCurrency(next);
-                updateSetting('currency', next);
-              }}
-            >
-              <Text style={styles.currencyText}>{currency} ({currency === 'INR' ? '₹' : currency === 'USD' ? '$' : '€'})</Text>
-              <ChevronRight size={16} color={THEME.subText} />
-            </TouchableOpacity>
-          </View>
+            
+            <View style={styles.dropdownTrigger}>
+              <Text style={styles.dropdownText}>{currency}</Text>
+              <ChevronDown size={16} color={THEME.subText} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* LEGAL SECTION */}
@@ -250,10 +285,47 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Version 1.0.2 (Build 45)</Text>
-
+        <Text style={styles.version}>Version 1.0.3 (Build 46)</Text>
       </ScrollView>
-      
+
+      {/* CURRENCY SELECTION MODAL */}
+      <Modal visible={showCurrencyModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Currency</Text>
+              <TouchableOpacity onPress={() => setShowCurrencyModal(false)}>
+                <Text style={{color: THEME.subText}}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={CURRENCIES}
+              keyExtractor={(item) => item.code}
+              renderItem={({item}) => (
+                <TouchableOpacity 
+                  style={[styles.currencyOption, currency === item.code && styles.currencyOptionActive]}
+                  onPress={() => {
+                    setCurrency(item.code as any);
+                    setShowCurrencyModal(false);
+                  }}
+                >
+                  <View style={{flexDirection:'row', gap: 10, alignItems:'center'}}>
+                    <View style={styles.currencyIcon}>
+                      <Text style={{color: 'white', fontWeight:'bold'}}>{item.symbol}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.optionCode}>{item.code}</Text>
+                      <Text style={styles.optionLabel}>{item.label}</Text>
+                    </View>
+                  </View>
+                  {currency === item.code && <Check size={20} color={THEME.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
       {loading && (
         <View style={styles.loaderOverlay}>
           <ActivityIndicator size="large" color={THEME.primary} />
@@ -273,7 +345,7 @@ const styles = StyleSheet.create({
   avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: THEME.primary, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 24, fontWeight: 'bold', color: 'white' },
   emailText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  uidText: { color: THEME.subText, fontSize: 12 },
+  //uidText: { color: THEME.subText, fontSize: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#09090b', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: THEME.border, gap: 10 },
   input: { flex: 1, color: 'white', fontSize: 16 },
   sectionTitle: { color: THEME.subText, fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 10, paddingLeft: 5 },
@@ -281,11 +353,32 @@ const styles = StyleSheet.create({
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { color: 'white', fontSize: 16, fontWeight: '500' },
-  currencyBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  currencyText: { color: THEME.subText, fontSize: 14 },
   divider: { height: 1, backgroundColor: THEME.border, marginVertical: 12 },
+  
+  // Dropdown Styles
+  dropdownTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#27272a', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  dropdownText: { color: 'white', fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: THEME.card, borderRadius: 24, padding: 20, maxHeight: '60%', borderWidth: 1, borderColor: THEME.border },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
+  modalTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  currencyOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#27272a' },
+  currencyOptionActive: { backgroundColor: 'rgba(139, 92, 246, 0.1)', marginHorizontal: -10, paddingHorizontal: 10, borderRadius: 12, borderBottomColor: 'transparent' },
+  currencyIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#27272a', alignItems: 'center', justifyContent: 'center' },
+  optionCode: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  optionLabel: { color: THEME.subText, fontSize: 12 },
+  
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, padding: 16, borderRadius: 16, backgroundColor: '#27272a' },
   logoutText: { color: 'white', fontWeight: 'bold' },
   version: { textAlign: 'center', color: '#52525b', marginTop: 30, fontSize: 12 },
-  loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+  loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  adBanner: {
+    backgroundColor: '#27272a',
+    padding: 15,
+    borderRadius: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });

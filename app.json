@@ -40,7 +40,16 @@
           }
         }
       ],
-      "react-native-google-mobile-ads"
+      /*
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2729715073425515~1514335179",
+          //"iosAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy",
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+        }
+      ]
+        */
     ],
     "experiments": {
       "typedRoutes": true,

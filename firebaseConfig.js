@@ -1,14 +1,15 @@
-import { initializeApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth, getReactNativePersistence, initializeAuth } from "firebase/auth";
 import {
+  getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
 } from "firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getFunctions } from "firebase/functions"; // <--- Important
 import { Platform } from "react-native";
 
-// Access environment variables
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -18,10 +19,15 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize App
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 
-// Initialize Auth (Platform aware)
+// Initialize Auth
 let auth;
 if (Platform.OS === "web") {
   auth = getAuth(app);
@@ -31,17 +37,21 @@ if (Platform.OS === "web") {
   });
 }
 
-// Firestore persistence options
-// Use persistentMultipleTabManager on web for multi-tab coordination,
-// and AsyncStorage for native persistence.
-const cacheOptions =
-  Platform.OS === "web"
-    ? { tabManager: persistentMultipleTabManager(), storage: AsyncStorage }
-    : { storage: AsyncStorage };
+// Initialize Firestore (Safe Mode)
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+      storage: AsyncStorage
+    }),
+  });
+} catch (e) {
+  db = getFirestore(app); // Fallback if already initialized
+}
 
-// Initialize Firestore with persistent local cache
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache(cacheOptions),
-});
+// Initialize Functions
+const functions = getFunctions(app, 'us-central1'); // replace with region where you deployed generateAiRoast
 
-export { auth, db };
+export { auth, db, functions };
+

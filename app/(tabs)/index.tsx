@@ -1,46 +1,87 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View, Text, StatusBar, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Modal, ScrollView, Alert, Linking,
-  KeyboardAvoidingView, Platform, AppState, Vibration, Switch, Dimensions
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Coffee, Car, ShoppingBag, Smartphone, Zap, Film, Wallet,
-  Languages, LogOut, Plus, Shield, ArrowUpRight, X,
-  Sparkles, MessageSquare, Send, Megaphone, AlertCircle, WifiOff, Lock, Delete, Fingerprint, Edit2, Repeat, Calendar
-} from 'lucide-react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as LocalAuthentication from 'expo-local-authentication';
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Calendar,
+  Car,
+  Coffee,
+  Delete,
+  Edit2,
+  Film,
+  Fingerprint,
+  Languages,
+  Lock,
+  LogOut,
+  Megaphone,
+  MessageSquare,
+  Plus,
+  Repeat,
+  Send,
+  Shield,
+  ShoppingBag, Smartphone,
+  Sparkles,
+  Wallet,
+  WifiOff,
+  X,
+  Zap
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar, StyleSheet,
+  Switch,
+  Text,
+  TextInput, TouchableOpacity,
+  Vibration,
+  View
+} from 'react-native';
 // Add useFocusEffect to the imports
-import { useFocusEffect } from 'expo-router';
 
 // AUTH & FIREBASE
-import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 
-import { 
-  GoogleAuthProvider, 
+// Add 'functions' to your firebaseConfig import
+import { auth, db } from '../../firebaseConfig';
+
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithCredential,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut 
+  signOut
 } from 'firebase/auth';
 
 import {
-  collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, updateDoc, where, getDocs, setDoc
+  addDoc,
+  collection,
+  deleteDoc, doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc, where
 } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig'; 
+ 
 
 // NEW: Notifications
-import * as Notifications from 'expo-notifications';
-import { sendLocalNotification, registerForPushNotificationsAsync } from '../../services/notifications';
+// import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { useUser } from '../../context/UserContext'; // ADD THIS IMPORT
+import { registerForPushNotificationsAsync, sendLocalNotification } from '../../services/notifications';
 
 // --- 🔑 SECURE KEYS ---
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const GOOGLE_WEB_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const GOOGLE_ANDROID_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
@@ -59,6 +100,9 @@ const THEME = {
   danger: '#ef4444',
   warning: '#f59e0b',
 };
+
+// Ad Unit ID — use TestIds.BANNER in dev to avoid policy issues
+//const adUnitId: string = __DEV__ ? TestIds.BANNER : 'ca-app-pub-2729715073425515/6271945631';
 
 const CATEGORIES = [
   { id: 'food', label: 'Munchies', icon: Coffee, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
@@ -92,22 +136,6 @@ const getGreeting = (lang: any) => {
   if (hour < 12) return "Good Morning";
   if (hour < 18) return "Good Afternoon";
   return "Good Evening";
-};
-
-const callGemini = async (prompt: any) => {
-  if (!GEMINI_API_KEY) return "Config Error: API Key missing in .env";
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "AI is napping. Try later.";
-  } catch (error) {
-    console.error(error);
-    return null; 
-  }
 };
 
 // --- HELPER: CALCULATE NEXT DUE DATE ---
@@ -297,8 +325,8 @@ export default function HomeScreen() {
   // 1. Create local state for the name so React knows when to re-render
   const [displayName, setDisplayName] = useState(user?.displayName || '');
 
-  // NEW: currency symbol state (default: INR)
-  const [currencySymbol, setCurrencySymbol] = useState('₹');
+  // Use global currency symbol from context
+  const { symbol: currencySymbol } = useUser();
 
   const [lang, setLang] = useState('en');
   const [activeTab] = useState('dashboard');
@@ -307,7 +335,23 @@ export default function HomeScreen() {
   const [showAiChat, setShowAiChat] = useState(false);
   const [riskProfile, setRiskProfile] = useState('moderate');
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
-
+  const callGemini = async (prompt: string) => {
+    if (!isConnected) return "You're offline. Connect to internet for roasted insights.";
+    try {
+      const response = await fetch('https://gemini-proxy-pi-steel.vercel.app/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await response.json();
+      return data.text || "AI is napping. Try later.";
+    } catch (error) {
+      console.error("Proxy Error:", error);
+      return "AI brain freeze. Try again.";
+    }
+  };
   // NEW: Budget UI state
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
@@ -611,17 +655,21 @@ export default function HomeScreen() {
     }).filter(c => c.spent > 0 || c.limit > 0); // Show categories with spending or budgets set
   }, [transactions, budgets]);
 
-  // Listen for user preference changes (currency)
-  useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(doc(db, 'users', user.uid, 'settings', 'preferences'), (snap) => {
-      if (snap.exists()) {
-        const code = snap.data().currency || 'INR';
-        setCurrencySymbol(code === 'USD' ? '$' : code === 'EUR' ? '€' : '₹');
-      }
-    });
-    return unsub;
-  }, [user]);
+  // --- INLINE AD (Reusable) ---
+  const InlineAd = () => (
+    <View style={styles.inlineAd}>
+      <View style={{flexDirection:'row', alignItems:'center', gap: 10}}>
+        <View style={{backgroundColor:'#fbbf24', paddingHorizontal:6, paddingVertical:2, borderRadius:4}}>
+          <Text style={{fontSize:10, fontWeight:'bold', color:'black'}}>AD</Text>
+        </View>
+        <View>
+          <Text style={{color:'white', fontWeight:'bold', fontSize:13}}>Get 5% Cashback</Text>
+          <Text style={{color:'#a1a1aa', fontSize:11}}>Apply for the DhanVayu Card</Text>
+        </View>
+      </View>
+      <Megaphone size={16} color="white" />
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -831,14 +879,18 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.adBanner}>
-        <Text style={styles.adText}>AD</Text>
-        <View style={{marginLeft: 10}}>
-          <Text style={[styles.adText, {fontWeight: 'bold'}]}>Start Trading Today</Text>
-          <Text style={[styles.adText, {fontSize: 10, color: '#a1a1aa'}]}>Sponsored by Your Broker</Text>
-        </View>
-        <Megaphone size={16} color="white" style={{marginLeft:'auto'}} />
+      {/* AdMob Banner */}
+      {/*
+      <View style={styles.adContainer}>
+        <BannerAd
+          unitId={__DEV__ ? TestIds.BANNER : adUnitId} // use TestIds.BANNER during development
+          size={BannerAdSize.BANNER} // CORRECT: use 'size' prop and a valid BannerAdSize
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
       </View>
+      */}
 
       <TouchableOpacity activeOpacity={0.8} onPress={() => { setEditingTx(null); setShowAddModal(true); }} style={styles.fabShadow}>
         <LinearGradient colors={['#22d3ee', '#3b82f6']} style={styles.fab}>
@@ -847,7 +899,13 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       <AddModal visible={showAddModal} onClose={closeModal} onSave={handleSave} initialData={editingTx} currencySymbol={currencySymbol} />
-      <AiChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} transactions={transactions} isConnected={isConnected} />
+      <AiChatModal 
+        visible={showAiChat} 
+        onClose={() => setShowAiChat(false)} 
+        transactions={transactions} 
+        isConnected={isConnected} 
+        onGetRoast={callGemini} 
+      />
 
       {/* NEW: Budget modal */}
       <BudgetModal
@@ -861,40 +919,39 @@ export default function HomeScreen() {
   );
 }
 
-const AiChatModal = ({ visible, onClose, transactions, isConnected }: { visible: any, onClose: any, transactions: any, isConnected: any }) => {
+const AiChatModal = ({ visible, onClose, transactions, isConnected, onGetRoast }: { visible: any; onClose: any; transactions: any; isConnected: any; onGetRoast: any; }): React.JSX.Element => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([{ id: 1, text: "Yo! I'm DhanVayu AI. Ask me about your spending or how to get rich.", isBot: true }]);
   const [loading, setLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
-    const userMsg = { id: Date.now(), text: input, isBot: false };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    
-    if (!isConnected) {
-      setTimeout(() => {
-        setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
-      }, 500);
-      return;
+    try {
+      if (!input.trim()) return;
+      const userMsg = { id: Date.now(), text: input, isBot: false };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+      if (!isConnected) {
+        setTimeout(() => {
+          setMessages(prev => [...prev, { id: Date.now() + 1, text: "🚫 I'm offline rn. Try again when you have signal.", isBot: true }]);
+        }, 500);
+        return;
+      }
+      setLoading(true);
+      const txSummary = transactions.slice(0, 10).map((t: any) => `${t.title} (${t.amount})`).join(', ');
+      const prompt = `You are a Gen-Z financial advisor. My recent transactions: ${txSummary}. User Question: "${userMsg.text}" Keep your answer short, helpful, and use emojis.`;
+      const response = await onGetRoast(prompt);
+      if (response) {
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
+      } else {
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
+      }
+    } catch (err) {
+      console.error("handleSend error:", err);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Something broke. Try again later.", isBot: true }]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-
-    const txSummary = transactions.slice(0, 10).map((t:any) => `${t.title} (${t.amount})`).join(', ');
-    const prompt = `You are a Gen-Z financial advisor. 
-    My recent transactions: ${txSummary}.
-    User Question: "${userMsg.text}"
-    Keep your answer short, helpful, and use emojis.`;
-
-    const response = await callGemini(prompt);
-    if (response) {
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: response, isBot: true }]);
-    } else {
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Error connecting to brain. 😵", isBot: true }]);
-    }
-    setLoading(false);
   };
 
   return (
@@ -904,36 +961,35 @@ const AiChatModal = ({ visible, onClose, transactions, isConnected }: { visible:
           <Text style={styles.chatTitle}>Ask DhanVayu 🤖</Text>
           <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
         </View>
-        <ScrollView 
-          style={styles.chatBody} 
-          contentContainerStyle={{padding: 20, paddingBottom: 40}}
+        <ScrollView
+          style={styles.chatBody}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
           ref={scrollViewRef}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({animated: true})}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map(msg => (
             <View key={msg.id} style={[styles.msgBubble, msg.isBot ? styles.botBubble : styles.userBubble]}>
               <Text style={msg.isBot ? styles.btnText : styles.userText}>{msg.text}</Text>
             </View>
           ))}
-          {loading && <ActivityIndicator color={THEME.accent} style={{alignSelf: 'flex-start', marginLeft: 20}} />}
+          {loading && <ActivityIndicator color={THEME.accent} style={{ alignSelf: 'flex-start', marginLeft: 20 }} />}
         </ScrollView>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.chatInputArea}>
-          <TextInput 
-            style={styles.chatInput} 
+          <TextInput
+            style={styles.chatInput}
             placeholder={isConnected ? "Ask anything..." : "Offline mode..."}
             placeholderTextColor="#71717a"
             value={input}
             onChangeText={setInput}
-            editable={isConnected ? true : false}
-          />
-          <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && {backgroundColor: '#3f3f46'}]} disabled={!isConnected}>
+            editable={isConnected ? true : false} />
+          <TouchableOpacity onPress={handleSend} style={[styles.sendBtn, !isConnected && { backgroundColor: '#3f3f46' }]} disabled={!isConnected}>
             <Send size={20} color={isConnected ? "white" : "#71717a"} />
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </View>
     </Modal>
   );
-};
+}
 
 const InvestView = ({ t, riskProfile, setRiskProfile }: { t: any, riskProfile: any, setRiskProfile: any }) => (
   <View style={styles.content}>
@@ -1282,8 +1338,16 @@ const styles = StyleSheet.create({
   txTitle: { fontWeight: '700', color: 'white', fontSize: 16 },
   txDate: { fontSize: 12, color: '#71717a', marginTop: 2 },
   txAmt: { fontWeight: 'bold', fontSize: 16, color: THEME.text },
-  adBanner: { position: 'absolute', bottom: 90, left: 20, right: 20, height: 50, backgroundColor: '#18181b', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: '#3f3f46', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
-  adText: { color: 'white', fontSize: 12 },
+  //adBanner: { position: 'absolute', bottom: 90, left: 20, right: 20, height: 50, backgroundColor: '#18181b', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: '#3f3f46', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
+
+  // NEW: Ad container for BannerAd component
+  //adContainer: {
+   // alignItems: 'center',
+    //justifyContent: 'center',
+    //marginVertical: 20,
+    //width: '100%',
+    //minHeight: 50, // optional: reserve space while loading
+  //},
   fab: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   fabShadow: { position: 'absolute', bottom: 150, right: 20, shadowColor: '#22d3ee', shadowOpacity: 0.5, elevation: 10, shadowRadius: 15 },
   floatingNavWrapper: { position: 'absolute', bottom: 30, width: '100%', alignItems: 'center' },
@@ -1375,7 +1439,19 @@ const styles = StyleSheet.create({
     },
     affiliateIconBox: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     affiliateName: { color: 'white', fontWeight: '700', fontSize: 14 },
-    affiliateDesc: { color: '#a1a1aa', fontSize: 12 },
+    affiliateDesc: { color: '#a1a1aa', fontSize:  12 },
     affiliateBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-    affiliateBtnText: { color: 'white', fontWeight: '700' }
-  });
+    affiliateBtnText: { color: 'white', fontWeight: '700' },
+    inlineAd: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#18181b',
+      padding: 12,
+      borderRadius: 16,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: '#3f3f46',
+      borderStyle: 'dashed', // Differentiate ads
+    },
+});
