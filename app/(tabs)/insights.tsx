@@ -1,18 +1,29 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, 
-  Dimensions, ActivityIndicator, Alert, Share 
-} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Search, ChevronLeft, ChevronRight, FileText, FileSpreadsheet, X 
-} from 'lucide-react-native';
-import { PieChart } from 'react-native-chart-kit';
-import { collection, query, orderBy, onSnapshot, Firestore, doc } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig'; 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { Firestore, collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import {
+  FileSpreadsheet,
+  FileText,
+  Megaphone,
+  Search,
+  X
+} from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator, Alert,
+  Dimensions,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput, TouchableOpacity,
+  View
+} from 'react-native';
+import { PieChart } from 'react-native-chart-kit';
+import { auth, db } from '../../firebaseConfig';
+
 
 // --- 1. SHARED THEME (Matches index.tsx & explore.tsx) ---
 const THEME = {
@@ -250,26 +261,7 @@ export default function InsightsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={[THEME.bg, '#1e1b4b']} style={StyleSheet.absoluteFill} />
       
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Analytics & History</Text>
-      </View>
-
-      {/* MONTH NAV */}
-      <View style={styles.monthNav}>
-        <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navBtn}>
-          <ChevronLeft color="white" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.monthTitle}>
-          {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </Text>
-        <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navBtn}>
-          <ChevronRight color="white" size={24} />
-        </TouchableOpacity>
-      </View>
-
       {/* FILTERS */}
       <View style={styles.filterContainer}>
         <View style={styles.searchBox}>
@@ -317,6 +309,14 @@ export default function InsightsScreen() {
         </ScrollView>
       </View>
 
+      {/* AD #1 */}
+      <View style={styles.adDashedWrap}>
+        <View style={styles.adDashed}>
+          <Text style={styles.adSmallText}>AD: Track your credit score for free</Text>
+          <Megaphone size={14} color="#a1a1aa" />
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         
         {/* CHARTS (Only show if expenses exist) */}
@@ -344,6 +344,24 @@ export default function InsightsScreen() {
              </Text>
           </View>
         )}
+
+        {/* AD #2: After Chart */}
+        <View style={styles.adGradientWrap}>
+          <LinearGradient
+            colors={['#1e1b4b', '#312e81']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.adGradient}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adGradientTitle}>Investment Report</Text>
+              <Text style={styles.adGradientSub}>Download for ₹99/mo</Text>
+            </View>
+            <View style={styles.adInstallButton}>
+              <Text style={styles.adInstallText}>INSTALL</Text>
+            </View>
+          </LinearGradient>
+        </View>
 
         {/* EXPORT OPTIONS */}
         <View style={styles.exportRow}>
@@ -417,4 +435,55 @@ const styles = StyleSheet.create({
   txTitle: { color: 'white', fontWeight: '600', fontSize: 16 },
   txDate: { color: THEME.subText, fontSize: 12, marginTop: 4 },
   txAmount: { fontSize: 16, fontWeight: 'bold' },
+
+  adDashedWrap: {
+    marginHorizontal: 20,
+    marginTop: 15,
+    marginBottom: 5,
+  },
+  adDashed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#18181b',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+    borderStyle: 'dashed',
+  },
+  adSmallText: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    marginRight: 8,
+  },
+
+  adGradientWrap: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  adGradient: {
+    padding: 15,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  adGradientTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  adGradientSub: {
+    color: '#a5b4fc',
+    fontSize: 11,
+  },
+  adInstallButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  adInstallText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 });

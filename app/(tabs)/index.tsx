@@ -16,6 +16,7 @@ import {
   Languages,
   Lock,
   LogOut,
+  Megaphone,
   MessageSquare,
   Plus,
   Repeat,
@@ -77,8 +78,8 @@ import {
 
 // NEW: Notifications
 // import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
-import { registerForPushNotificationsAsync, sendLocalNotification } from '../../services/notifications';
 import { useUser } from '../../context/UserContext'; // ADD THIS IMPORT
+import { registerForPushNotificationsAsync, sendLocalNotification } from '../../services/notifications';
 
 // --- 🔑 SECURE KEYS ---
 const GOOGLE_WEB_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -653,6 +654,22 @@ export default function HomeScreen() {
       return { ...cat, spent, limit, percent, isBreached };
     }).filter(c => c.spent > 0 || c.limit > 0); // Show categories with spending or budgets set
   }, [transactions, budgets]);
+
+  // --- INLINE AD (Reusable) ---
+  const InlineAd = () => (
+    <View style={styles.inlineAd}>
+      <View style={{flexDirection:'row', alignItems:'center', gap: 10}}>
+        <View style={{backgroundColor:'#fbbf24', paddingHorizontal:6, paddingVertical:2, borderRadius:4}}>
+          <Text style={{fontSize:10, fontWeight:'bold', color:'black'}}>AD</Text>
+        </View>
+        <View>
+          <Text style={{color:'white', fontWeight:'bold', fontSize:13}}>Get 5% Cashback</Text>
+          <Text style={{color:'#a1a1aa', fontSize:11}}>Apply for the DhanVayu Card</Text>
+        </View>
+      </View>
+      <Megaphone size={16} color="white" />
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -1424,5 +1441,17 @@ const styles = StyleSheet.create({
     affiliateName: { color: 'white', fontWeight: '700', fontSize: 14 },
     affiliateDesc: { color: '#a1a1aa', fontSize:  12 },
     affiliateBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-    affiliateBtnText: { color: 'white', fontWeight: '700' }
-  });
+    affiliateBtnText: { color: 'white', fontWeight: '700' },
+    inlineAd: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#18181b',
+      padding: 12,
+      borderRadius: 16,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: '#3f3f46',
+      borderStyle: 'dashed', // Differentiate ads
+    },
+});

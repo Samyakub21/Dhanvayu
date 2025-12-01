@@ -1,24 +1,53 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, 
-  FlatList, KeyboardAvoidingView, Platform, StatusBar, ScrollView, Alert, ActivityIndicator, Switch
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Users, Plus, ArrowUpRight, ArrowDownLeft, X, Check, 
-  Receipt, Search, Send, ChevronLeft, DollarSign, 
-  CheckCircle2, Info, UserPlus, Settings, PieChart, Calculator, Divide, Trash2, Edit2
-} from 'lucide-react-native';
 import * as Contacts from 'expo-contacts';
-import { 
-  collection, query, orderBy, onSnapshot, addDoc, 
-  doc, serverTimestamp, updateDoc, arrayUnion, deleteDoc, getDoc 
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp, updateDoc
 } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig'; 
-
-// NEW: notifications helper
+import {
+  AlertCircle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  Divide,
+  DollarSign,
+  Megaphone,
+  PieChart,
+  Plus,
+  Receipt,
+  Send,
+  UserPlus,
+  Users,
+  X
+} from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList, KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { auth, db } from '../../firebaseConfig';
 import { sendLocalNotification } from '../../services/notifications';
 
 // --- THEME ---
@@ -31,6 +60,7 @@ const THEME = {
   accent: '#d946ef',
   success: '#10b981',
   danger: '#ef4444',
+  warning: '#f59e0b',
   input: '#27272a',
   border: '#3f3f46',
 };
@@ -57,10 +87,13 @@ type FeedItem = {
   paidBy?: string; 
   splitType?: 'equal' | 'exact' | 'percent';
   splitDetails?: string; 
-  splits?: Record<string, number>; // Store full split data for editing
-  balanceImpact?: number; // Store how much this tx changed the balance
+  splits?: Record<string, number>;
+  balanceImpact?: number;
   createdAt: any;
 };
+
+// ... (Main Screen and SplitChatScreen logic remains the same) ...
+// Keeping the imports and setup, let's fast forward to the Modals where the changes are.
 
 export default function SplitChatScreen() {
   const [user, setUser] = useState(auth.currentUser);
@@ -70,7 +103,6 @@ export default function SplitChatScreen() {
   const [loading, setLoading] = useState(true);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
 
-  // NEW: currency symbol state + listener (copy from HomeScreen)
   const [currencySymbol, setCurrencySymbol] = useState('₹');
   useEffect(() => {
     if (!user) return;
@@ -83,7 +115,6 @@ export default function SplitChatScreen() {
     return unsub;
   }, [user]);
 
-  // --- FETCH CHATS ---
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'users', user.uid, 'chats'), orderBy('lastActive', 'desc'));
@@ -95,7 +126,6 @@ export default function SplitChatScreen() {
     return unsub;
   }, [user]);
 
-  // --- ACTIONS ---
   const handleDeleteChat = async (chatId: string) => {
     Alert.alert("Delete Chat?", "This will remove all history and is irreversible.", [
       { text: "Cancel", style: 'cancel' },
@@ -109,7 +139,6 @@ export default function SplitChatScreen() {
     ]);
   };
 
-  // --- TOTALS ---
   const { totalOwed, totalDebt } = useMemo(() => {
     let owed = 0, debt = 0;
     chats.forEach(c => c.balance > 0 ? owed += c.balance : debt += Math.abs(c.balance));
@@ -117,7 +146,6 @@ export default function SplitChatScreen() {
   }, [chats]);
 
   if (view === 'chat' && activeChat) {
-    // pass currencySymbol into ChatInterface
     return <ChatInterface chat={activeChat} onBack={() => { setView('list'); setActiveChat(null); }} user={user} currencySymbol={currencySymbol} />;
   }
 
@@ -126,7 +154,6 @@ export default function SplitChatScreen() {
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={[THEME.bg, '#1e1b4b']} style={StyleSheet.absoluteFill} />
       
-      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Split & Chat</Text>
@@ -137,8 +164,8 @@ export default function SplitChatScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        {/* DASHBOARD */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
+        {/* DASHBOARD SummaryRow */}
         <View style={styles.summaryRow}>
           <LinearGradient colors={['#065f46', '#059669']} style={styles.summaryCard}>
             <View style={styles.iconCircle}><ArrowUpRight size={18} color="white" /></View>
@@ -153,6 +180,22 @@ export default function SplitChatScreen() {
               <Text style={styles.summaryLabel}>You owe</Text>
               <Text style={styles.summaryValue}>{currencySymbol}{totalDebt.toFixed(0)}</Text>
             </View>
+          </LinearGradient>
+        </View>
+
+        {/* AGGRESSIVE AD: Between Summary and List */}
+        <View style={{paddingHorizontal: 20, marginBottom: 20}}>
+          <LinearGradient
+            colors={['#3f3f46', '#27272a']}
+            style={[styles.sponsoredAd, {flexDirection:'row', alignItems:'center', padding:12, borderRadius:12}]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.adBadge}>
+              <Text style={styles.adBadgeText}>SPONSORED</Text>
+            </View>
+            <Text style={styles.adTitle}>Settle debts instantly with UPI</Text>
+            <Megaphone size={16} color="#fbbf24" />
           </LinearGradient>
         </View>
 
@@ -212,28 +255,20 @@ export default function SplitChatScreen() {
 function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntity, onBack: () => void, user: any, currencySymbol: string }) {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [inputText, setInputText] = useState('');
-  
-  // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
-  
-  // Editing
   const [editingItem, setEditingItem] = useState<FeedItem | null>(null);
-
   const scrollRef = useRef<FlatList>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'chats', chat.id, 'feed'), orderBy('createdAt', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
-      // Notify on NEW feed items (but avoid spamming on initial load)
       snap.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data: any = change.doc.data();
           const createdAtSec = data.createdAt?.seconds ?? (new Date(data.createdAt || 0).getTime() / 1000);
           const isRecent = createdAtSec && createdAtSec > (Date.now() / 1000) - 10;
-
-          // Only notify for others' actions and recent items
           if (data.sender !== 'user' && data.paidBy !== 'You' && isRecent) {
             if (data.type === 'expense') {
               sendLocalNotification("New Bill 💸", `${data.paidBy || 'Friend'} added: ${data.description || ''}`);
@@ -243,14 +278,10 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
           }
         }
       });
-
-      // Update local feed state as before
       setFeed(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FeedItem[]);
     });
     return unsub;
   }, [chat.id, user.uid]);
-
-  // --- CRUD OPERATIONS ---
 
   const sendMessage = async () => {
     if (!inputText.trim()) return;
@@ -263,60 +294,27 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
   const calculateBalanceImpact = (details: any) => {
     const myShare = details.splits['You'] || 0;
     const paidByMe = details.paidBy === 'You';
-    
-    // If I paid, I am owed (Total - MyShare)
-    // If someone else paid, I owe (MyShare) -> so balance decreases
-    if (paidByMe) {
-      return details.amount - myShare; 
-    } else {
-      return -myShare;
-    }
+    return paidByMe ? details.amount - myShare : -myShare;
   };
 
   const handleSaveExpense = async (details: any) => {
     const newImpact = calculateBalanceImpact(details);
-
     if (editingItem) {
-      // 1. EDIT MODE: Reverse old impact, apply new impact
       const oldImpact = editingItem.balanceImpact || 0;
       const netChange = newImpact - oldImpact;
-
       await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id, 'feed', editingItem.id), {
-        description: details.description,
-        amount: details.amount,
-        paidBy: details.paidBy,
-        splitType: details.splitType,
-        splits: details.splits,
-        splitDetails: generateSplitSummary(details),
-        balanceImpact: newImpact
+        description: details.description, amount: details.amount, paidBy: details.paidBy,
+        splitType: details.splitType, splits: details.splits, splitDetails: generateSplitSummary(details), balanceImpact: newImpact
       });
-
-      await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), {
-        balance: chat.balance + netChange,
-        lastActive: serverTimestamp()
-      });
-
+      await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), { balance: chat.balance + netChange, lastActive: serverTimestamp() });
       setEditingItem(null);
     } else {
-      // 2. CREATE MODE
       await addDoc(collection(db, 'users', user.uid, 'chats', chat.id, 'feed'), {
-        type: 'expense',
-        description: details.description,
-        amount: details.amount,
-        paidBy: details.paidBy,
-        splitType: details.splitType,
-        splits: details.splits,
-        splitDetails: generateSplitSummary(details),
-        balanceImpact: newImpact,
-        createdAt: serverTimestamp()
+        type: 'expense', description: details.description, amount: details.amount, paidBy: details.paidBy,
+        splitType: details.splitType, splits: details.splits, splitDetails: generateSplitSummary(details), balanceImpact: newImpact, createdAt: serverTimestamp()
       });
-
-      await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), {
-        balance: chat.balance + newImpact,
-        lastActive: serverTimestamp()
-      });
+      await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), { balance: chat.balance + newImpact, lastActive: serverTimestamp() });
     }
-
     setShowExpenseModal(false);
   };
 
@@ -324,34 +322,16 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
     Alert.alert("Delete Item", "Remove this from the chat?", [
       { text: "Cancel", style: 'cancel' },
       { 
-        text: "Delete", 
-        style: 'destructive',
+        text: "Delete", style: 'destructive',
         onPress: async () => {
-          // If it's an expense or settlement, reverse the balance
           let reverseChange = 0;
-          
-          if (item.type === 'expense' && item.balanceImpact) {
-            reverseChange = -item.balanceImpact;
-          } else if (item.type === 'settlement') {
-            // If I paid (balance went up/neutralized debt), reversing means going back into debt
-            // Actually settlement math:
-            // Settle amount X.
-            // If I paid X, balance became (Balance + X). Reversing = (Balance - X).
-            // Wait, settlement usually brings balance TO zero.
-            // If balance was -500. I pay 500. Balance = 0.
-            // Delete settlement: Balance should go back to -500.
-            // So we subtract the amount I paid.
+          if (item.type === 'expense' && item.balanceImpact) reverseChange = -item.balanceImpact;
+          else if (item.type === 'settlement') {
             const wasPaidByMe = item.paidBy === 'user' || item.paidBy === 'You';
             reverseChange = wasPaidByMe ? -item.amount! : item.amount!;
           }
-
           await deleteDoc(doc(db, 'users', user.uid, 'chats', chat.id, 'feed', item.id));
-          
-          if (reverseChange !== 0) {
-            await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), {
-              balance: chat.balance + reverseChange
-            });
-          }
+          if (reverseChange !== 0) await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), { balance: chat.balance + reverseChange });
         }
       }
     ]);
@@ -370,38 +350,20 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
   };
 
   const settleUp = async () => {
-    // Settle Up logic: user pays full debt or receives full owed
-    // Impact: brings balance to 0.
-    // If balance is -500 (I owe), I pay 500. Impact = +500.
-    // If balance is +500 (Owed), They pay 500. Impact = -500 (technically 'owed' decreases).
-    
-    // Simpler: Just set balance to 0 and log it.
-    // But for "Delete" to work, we need to know what the change was.
-    const impact = -chat.balance; // The change needed to get to 0
-
+    const impact = -chat.balance;
     await addDoc(collection(db, 'users', user.uid, 'chats', chat.id, 'feed'), {
-      type: 'settlement', 
-      amount: Math.abs(chat.balance), 
-      paidBy: chat.balance > 0 ? chat.name : 'user', 
-      balanceImpact: impact,
-      createdAt: serverTimestamp()
+      type: 'settlement', amount: Math.abs(chat.balance), paidBy: chat.balance > 0 ? chat.name : 'user', 
+      balanceImpact: impact, createdAt: serverTimestamp()
     });
-    
-    await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), { 
-      balance: 0, 
-      lastActive: serverTimestamp() 
-    });
+    await updateDoc(doc(db, 'users', user.uid, 'chats', chat.id), { balance: 0, lastActive: serverTimestamp() });
     setShowSettleModal(false);
   };
 
   return (
     <View style={styles.chatContainer}>
       <LinearGradient colors={[THEME.bg, '#18181b']} style={StyleSheet.absoluteFill} />
-      
-      {/* CHAT HEADER */}
       <View style={styles.chatHeader}>
         <TouchableOpacity onPress={onBack}><ChevronLeft color="white" size={26} /></TouchableOpacity>
-        
         <TouchableOpacity style={{flex:1, flexDirection:'row', alignItems:'center', marginLeft:10}} onPress={() => setShowGroupInfo(true)}>
            <View style={[styles.avatarSmall, { backgroundColor: chat.avatarColor }]}>
              {chat.type === 'group' ? <Users size={18} color="white"/> : <Text style={styles.avatarTextSmall}>{chat.name[0]}</Text>}
@@ -413,33 +375,22 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
              </Text>
            </View>
         </TouchableOpacity>
-
         {chat.balance !== 0 && (
           <TouchableOpacity style={styles.settleBtnHeader} onPress={() => setShowSettleModal(true)}>
              <Text style={styles.settleBtnText}>Settle</Text>
           </TouchableOpacity>
         )}
       </View>
-
-      {/* FEED */}
       <FlatList
         ref={scrollRef}
         data={feed}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <FeedItemRow 
-            item={item} 
-            chat={chat} 
-            onDelete={() => handleDeleteItem(item)} 
-            onEdit={() => handleEditItem(item)} 
-            currencySymbol={currencySymbol}
-          />
+          <FeedItemRow item={item} chat={chat} onDelete={() => handleDeleteItem(item)} onEdit={() => handleEditItem(item)} currencySymbol={currencySymbol} />
         )}
         contentContainerStyle={{ padding: 15, paddingBottom: 20 }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       />
-
-      {/* FOOTER */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0} style={styles.keyboardContainer}>
         <View style={styles.chatFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditingItem(null); setShowExpenseModal(true); }}>
@@ -453,15 +404,7 @@ function ChatInterface({ chat, onBack, user, currencySymbol }: { chat: ChatEntit
         </View>
       </KeyboardAvoidingView>
 
-      {/* MODALS */}
-      <AdvancedExpenseModal 
-        visible={showExpenseModal} 
-        onClose={() => { setShowExpenseModal(false); setEditingItem(null); }} 
-        chat={chat} 
-        onSave={handleSaveExpense}
-        initialData={editingItem}
-        currencySymbol={currencySymbol}
-      />
+      <AdvancedExpenseModal visible={showExpenseModal} onClose={() => { setShowExpenseModal(false); setEditingItem(null); }} chat={chat} onSave={handleSaveExpense} initialData={editingItem} currencySymbol={currencySymbol} />
       <SettleModal visible={showSettleModal} onClose={() => setShowSettleModal(false)} chat={chat} onConfirm={settleUp} currencySymbol={currencySymbol} />
       <GroupInfoModal visible={showGroupInfo} onClose={() => setShowGroupInfo(false)} chat={chat} userId={user.uid} />
     </View>
@@ -480,7 +423,6 @@ const FeedItemRow = ({ item, chat, onDelete, onEdit, currencySymbol }: { item: F
       </TouchableOpacity>
     );
   }
-  
   if (item.type === 'settlement') {
     return (
       <TouchableOpacity onLongPress={onDelete} delayLongPress={500}>
@@ -493,15 +435,9 @@ const FeedItemRow = ({ item, chat, onDelete, onEdit, currencySymbol }: { item: F
       </TouchableOpacity>
     );
   }
-
   const isUserPaid = item.paidBy === 'You' || item.paidBy === 'user';
   return (
-    <TouchableOpacity 
-      onPress={onEdit} 
-      onLongPress={onDelete} 
-      delayLongPress={500} 
-      activeOpacity={0.9}
-    >
+    <TouchableOpacity onPress={onEdit} onLongPress={onDelete} delayLongPress={500} activeOpacity={0.9}>
       <View style={styles.expenseContainer}>
         <View style={styles.expenseCard}>
           <View style={[styles.expenseIcon, { backgroundColor: isUserPaid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
@@ -524,7 +460,7 @@ const FeedItemRow = ({ item, chat, onDelete, onEdit, currencySymbol }: { item: F
   );
 };
 
-// --- COMPLEX MODALS ---
+// --- UPDATED COMPLEX MODALS WITH VALIDATION ---
 
 const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, currencySymbol }: any) => {
   const [desc, setDesc] = useState('');
@@ -532,10 +468,13 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
   const [paidBy, setPaidBy] = useState('You');
   const [splitType, setSplitType] = useState<'equal' | 'exact' | 'percent'>('equal');
   
-  const allMembers = ['You', ...(chat.members || [])];
-  
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(allMembers);
+  const allMembers = useMemo(() => ['You', ...(chat.members || [])], [chat.members]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [manualValues, setManualValues] = useState<Record<string, string>>({});
+
+  // Validation State
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Reset or Load Data
   useEffect(() => {
@@ -545,14 +484,59 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
         setAmount(initialData.amount?.toString() || '');
         setPaidBy(initialData.paidBy || 'You');
         setSplitType(initialData.splitType || 'equal');
-        // If loading complex splits, you might need to pre-fill manualValues
-        // For brevity, defaulting to equal or what was saved
+        setManualValues(
+          allMembers.reduce((acc: any, m: string) => {
+            if (initialData.splits && initialData.splits[m]) {
+              // Convert stored split to string for input
+              const val = initialData.splitType === 'percent' 
+                ? (initialData.splits[m] / initialData.amount * 100).toFixed(0) // Approx percent reverse
+                : initialData.splits[m].toString();
+              acc[m] = val;
+            }
+            return acc;
+          }, {})
+        );
+        // Determine selected members based on splits
+        const involved = Object.keys(initialData.splits || {}).filter(k => initialData.splits[k] > 0);
+        setSelectedMembers(involved.length > 0 ? involved : allMembers);
       } else {
         setDesc(''); setAmount(''); setPaidBy('You'); setSplitType('equal'); setManualValues({});
         setSelectedMembers(allMembers);
+        setErrors({}); setTouched({});
       }
     }
   }, [visible, initialData, allMembers]);
+
+  // Real-time Validation Effect
+  useEffect(() => {
+    const newErrors: Record<string, string> = {};
+    const total = parseFloat(amount);
+    
+    // 1. Basic Fields
+    if (!desc.trim()) newErrors.desc = "Description is required";
+    if (!amount || isNaN(total) || total <= 0) newErrors.amount = "Enter a valid amount";
+
+    // 2. Split Logic
+    if (splitType === 'equal') {
+      if (selectedMembers.length === 0) newErrors.split = "Select at least one person to split with";
+    } 
+    else if (splitType === 'exact') {
+      let sum = 0;
+      allMembers.forEach(m => sum += parseFloat(manualValues[m] || '0'));
+      if (Math.abs(sum - total) > 0.01) {
+        newErrors.split = `Sum: ${currencySymbol}${sum.toFixed(2)} / Total: ${currencySymbol}${total.toFixed(2)}`;
+      }
+    } 
+    else if (splitType === 'percent') {
+      let sum = 0;
+      allMembers.forEach(m => sum += parseFloat(manualValues[m] || '0'));
+      if (Math.abs(sum - 100) > 0.1) {
+        newErrors.split = `Total: ${sum.toFixed(1)}% (Must be 100%)`;
+      }
+    }
+
+    setErrors(newErrors);
+  }, [desc, amount, splitType, selectedMembers, manualValues, currencySymbol]);
 
   const toggleMember = (m: string) => {
     if (selectedMembers.includes(m)) setSelectedMembers(prev => prev.filter(x => x !== m));
@@ -564,33 +548,29 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
   };
 
   const handleSubmit = () => {
-    const total = parseFloat(amount);
-    if (!desc || isNaN(total) || total <= 0) return Alert.alert("Error", "Enter valid details");
+    // Mark all as touched to show errors
+    setTouched({ desc: true, amount: true, split: true });
 
+    if (Object.keys(errors).length > 0) {
+      // Find the first error to alert user vaguely or just let the UI show it
+      return; 
+    }
+
+    const total = parseFloat(amount);
     const splits: Record<string, number> = {};
 
     if (splitType === 'equal') {
-      if (selectedMembers.length === 0) return Alert.alert("Error", "Select at least one person");
       const share = total / selectedMembers.length;
       selectedMembers.forEach(m => splits[m] = share);
     } 
     else if (splitType === 'exact') {
-      let sum = 0;
-      allMembers.forEach(m => {
-        const val = parseFloat(manualValues[m] || '0');
-        splits[m] = val;
-        sum += val;
-      });
-      if (Math.abs(sum - total) > 1) return Alert.alert("Error", `Amounts sum to ${currencySymbol}${sum}, but total is ${currencySymbol}${total}`);
+      allMembers.forEach(m => splits[m] = parseFloat(manualValues[m] || '0'));
     } 
     else if (splitType === 'percent') {
-      let sum = 0;
       allMembers.forEach(m => {
-        const val = parseFloat(manualValues[m] || '0');
-        splits[m] = (val / 100) * total;
-        sum += val;
+        const pct = parseFloat(manualValues[m] || '0');
+        splits[m] = (pct / 100) * total;
       });
-      if (Math.abs(sum - 100) > 0.1) return Alert.alert("Error", `Percentages sum to ${sum}%, must be 100%`);
     }
 
     onSave({ description: desc, amount: total, paidBy, splitType, splits });
@@ -604,25 +584,39 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
           <TouchableOpacity onPress={onClose}><X size={24} color="white" /></TouchableOpacity>
         </View>
 
-        <View style={{flexDirection:'row', alignItems:'center', gap:10, marginBottom:20}}>
-          <View style={styles.iconBox}><Receipt color={THEME.primary} size={24} /></View>
-          <TextInput 
-            style={{fontSize:20, color:'white', fontWeight:'bold', flex:1}} 
-            placeholder="Description" 
-            placeholderTextColor="#52525b"
-            value={desc} onChangeText={setDesc} 
-          />
+        {/* Description Input */}
+        <View style={{ marginBottom: 20 }}>
+          <View style={{flexDirection:'row', alignItems:'center', gap:10}}>
+            <View style={[styles.iconBox, touched.desc && errors.desc ? {backgroundColor: 'rgba(239, 68, 68, 0.2)'} : {}]}>
+              <Receipt color={touched.desc && errors.desc ? THEME.danger : THEME.primary} size={24} />
+            </View>
+            <TextInput 
+              style={{fontSize:20, color:'white', fontWeight:'bold', flex:1}} 
+              placeholder="Description" 
+              placeholderTextColor="#52525b"
+              value={desc} 
+              onChangeText={setDesc}
+              onBlur={() => setTouched(prev => ({...prev, desc: true}))}
+            />
+          </View>
+          {touched.desc && errors.desc && <Text style={styles.errorText}>{errors.desc}</Text>}
         </View>
 
-        <View style={{flexDirection:'row', alignItems:'center', justifyContent:'center', marginBottom:20}}>
-           <Text style={{fontSize:32, color:'white', fontWeight:'bold'}}>{currencySymbol}</Text>
-           <TextInput 
-             style={{fontSize:48, color:'white', fontWeight:'bold', minWidth:50}} 
-             placeholder="0" placeholderTextColor="#52525b" 
-             keyboardType="numeric" value={amount} onChangeText={setAmount} 
-           />
+        {/* Amount Input */}
+        <View style={{ marginBottom: 20 }}>
+          <View style={{flexDirection:'row', alignItems:'center', justifyContent:'center'}}>
+             <Text style={{fontSize:32, color:'white', fontWeight:'bold'}}>{currencySymbol}</Text>
+             <TextInput 
+               style={{fontSize:48, color:'white', fontWeight:'bold', minWidth:50}} 
+               placeholder="0" placeholderTextColor="#52525b" 
+               keyboardType="numeric" value={amount} onChangeText={setAmount}
+               onBlur={() => setTouched(prev => ({...prev, amount: true}))} 
+             />
+          </View>
+          {touched.amount && errors.amount && <Text style={[styles.errorText, {textAlign:'center'}]}>{errors.amount}</Text>}
         </View>
 
+        {/* Paid By */}
         <View style={{marginBottom: 20}}>
            <Text style={styles.label}>Paid By</Text>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexDirection:'row'}}>
@@ -634,6 +628,7 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
            </ScrollView>
         </View>
 
+        {/* Split Method */}
         <View style={{marginBottom: 10}}>
            <Text style={styles.label}>Split Method</Text>
            <View style={styles.tabRow}>
@@ -649,6 +644,16 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
              ))}
            </View>
         </View>
+
+        {/* Error / Status Bar for Splits */}
+        {(splitType !== 'equal' || (touched.split && errors.split)) && (
+          <View style={[styles.validationBanner, errors.split ? {backgroundColor: 'rgba(239, 68, 68, 0.2)'} : {backgroundColor: 'rgba(16, 185, 129, 0.2)'}]}>
+             {errors.split ? <AlertCircle size={14} color={THEME.danger} /> : <Check size={14} color={THEME.success} />}
+             <Text style={{color: errors.split ? THEME.danger : THEME.success, fontWeight:'bold', fontSize:12}}>
+               {errors.split || (splitType === 'exact' ? 'Amounts match total' : 'Percentages total 100%')}
+             </Text>
+          </View>
+        )}
 
         <ScrollView style={{flex:1}}>
           {allMembers.map(m => {
@@ -670,7 +675,7 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
 
                 {(splitType === 'exact' || splitType === 'percent') && (
                   <TextInput 
-                    style={styles.smallInput} 
+                    style={[styles.smallInput, errors.split ? {borderColor: THEME.danger} : {}]} 
                     placeholder="0" 
                     placeholderTextColor="#52525b" 
                     keyboardType="numeric"
@@ -683,23 +688,39 @@ const AdvancedExpenseModal = ({ visible, onClose, chat, onSave, initialData, cur
           })}
         </ScrollView>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSubmit}>
-          <Text style={styles.saveBtnText}>{initialData ? 'Update' : 'Save'}</Text>
+        <TouchableOpacity 
+          style={[styles.saveBtn, Object.keys(errors).length > 0 && {backgroundColor: '#3f3f46', opacity: 0.8}]} 
+          onPress={handleSubmit}
+          disabled={Object.keys(errors).length > 0 && Object.keys(touched).length > 0} // Only disable if touched and errored
+        >
+          <Text style={[styles.saveBtnText, Object.keys(errors).length > 0 && Object.keys(touched).length > 0 && {color: '#71717a'}]}>
+             {initialData ? 'Update' : 'Save'}
+          </Text>
         </TouchableOpacity>
       </View>
     </Modal>
   );
 };
 
+// --- UPDATED GROUP INFO MODAL WITH VALIDATION ---
+
 const GroupInfoModal = ({ visible, onClose, chat, userId }: any) => {
   const [adding, setAdding] = useState(false);
   const [newMember, setNewMember] = useState('');
+  const [error, setError] = useState('');
 
   const handleAddMember = async () => {
-    if (!newMember.trim()) { setAdding(false); return; }
+    if (!newMember.trim()) {
+      setError('Name cannot be empty');
+      return;
+    }
+    if (chat.members.includes(newMember.trim())) {
+      setError('Member already exists');
+      return;
+    }
     try {
       await updateDoc(doc(db, 'users', userId, 'chats', chat.id), { members: arrayUnion(newMember.trim()) });
-      setNewMember(''); setAdding(false);
+      setNewMember(''); setAdding(false); setError('');
     } catch (e) { Alert.alert("Error", "Could not add member"); }
   };
 
@@ -725,7 +746,15 @@ const GroupInfoModal = ({ visible, onClose, chat, userId }: any) => {
           </ScrollView>
           {adding ? (
             <View style={{marginTop: 10}}>
-              <TextInput style={styles.input} placeholder="Enter Name" placeholderTextColor="#52525b" value={newMember} onChangeText={setNewMember} autoFocus />
+              <TextInput 
+                style={[styles.input, error ? {borderColor: THEME.danger} : {}]} 
+                placeholder="Enter Name" 
+                placeholderTextColor="#52525b" 
+                value={newMember} 
+                onChangeText={(t) => {setNewMember(t); setError('');}} 
+                autoFocus 
+              />
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
               <TouchableOpacity style={styles.saveBtn} onPress={handleAddMember}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
             </View>
           ) : (
@@ -740,22 +769,32 @@ const GroupInfoModal = ({ visible, onClose, chat, userId }: any) => {
   );
 };
 
+// --- UPDATED NEW CHAT MODAL WITH VALIDATION ---
+
 const NewChatModal = ({ visible, onClose, user }: any) => {
   const [name, setName] = useState('');
   const [mode, setMode] = useState('friend');
+  const [error, setError] = useState('');
+
   const handleCreate = async () => {
-     if(!name) return;
+     if(!name.trim()) {
+       setError('Name is required');
+       return;
+     }
      const color = ['#ef4444', '#f97316', '#f59e0b', '#10b981', '#3b82f6'][Math.floor(Math.random()*5)];
      await addDoc(collection(db, 'users', user.uid, 'chats'), {
-       name, type: mode, members: [], avatarColor: color, balance: 0, lastActive: serverTimestamp()
+       name: name.trim(), type: mode, members: [], avatarColor: color, balance: 0, lastActive: serverTimestamp()
      });
-     onClose(); setName('');
+     onClose(); setName(''); setError('');
   }
   const importContact = async () => {
      const { status } = await Contacts.requestPermissionsAsync();
      if (status === 'granted') {
        const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name] });
-       if (data.length > 0) setName(data[0].name); 
+       if (data.length > 0) {
+         setName(data[0].name); 
+         setError('');
+       }
      }
   }
   return (
@@ -768,7 +807,14 @@ const NewChatModal = ({ visible, onClose, user }: any) => {
         </View>
         <View style={styles.formGroup}>
           <Text style={styles.label}>Name</Text>
-          <TextInput style={styles.input} placeholder="Name" placeholderTextColor="#52525b" value={name} onChangeText={setName} />
+          <TextInput 
+            style={[styles.input, error ? {borderColor: THEME.danger} : {}]} 
+            placeholder="Name" 
+            placeholderTextColor="#52525b" 
+            value={name} 
+            onChangeText={(t) => {setName(t); setError('');}} 
+          />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
           {mode === 'friend' && <TouchableOpacity onPress={importContact}><Text style={{color: THEME.primary, marginTop:5}}>Import from Contacts</Text></TouchableOpacity>}
         </View>
         <TouchableOpacity style={styles.saveBtn} onPress={handleCreate}><Text style={styles.saveBtnText}>Create</Text></TouchableOpacity>
@@ -874,4 +920,30 @@ const styles = StyleSheet.create({
   tabSwitch: { flexDirection: 'row', backgroundColor: '#27272a', borderRadius: 12, padding: 4, marginBottom: 25 },
   input: { backgroundColor: '#27272a', color: 'white', padding: 16, borderRadius: 12, fontSize: 16, borderWidth: 1, borderColor: '#3f3f46', marginBottom: 15 },
   formGroup: { marginBottom: 20 },
+  // NEW STYLES
+  errorText: { color: THEME.danger, fontSize: 12, marginTop: -10, marginBottom: 15, marginLeft: 5 },
+  validationBanner: { flexDirection: 'row', alignItems:'center', gap: 6, padding: 10, borderRadius: 8, marginBottom: 10 },
+  sponsoredAd: {
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#3f3f46',
+  },
+  adBadge: {
+    backgroundColor: 'white',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  adBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: 'black',
+  },
+  adTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    flex: 1,
+  },
 });

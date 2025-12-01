@@ -11,6 +11,7 @@ import {
   DollarSign,
   FileText,
   LogOut,
+  Megaphone,
   Save, Shield,
   Trash2,
   User
@@ -177,6 +178,22 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* AD BANNER */}
+        <TouchableOpacity
+          style={styles.adBanner}
+          onPress={() => handleOpenLink('https://your-ad-link.example.com')}
+          activeOpacity={0.85}
+        >
+          <View style={{flexDirection:'row', alignItems:'center', gap:10}}>
+            <Megaphone size={20} color="#fbbf24" />
+            <View>
+              <Text style={{color:'white', fontWeight:'bold'}}>Upgrade to Pro</Text>
+              <Text style={{color:'#a1a1aa', fontSize:11}}>Remove ads & unlock themes</Text>
+            </View>
+          </View>
+          <ChevronRight size={16} color="#71717a" />
+        </TouchableOpacity>
 
         {/* SETTINGS SECTION */}
         <Text style={styles.sectionTitle}>App Settings</Text>
@@ -354,5 +371,14 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, padding: 16, borderRadius: 16, backgroundColor: '#27272a' },
   logoutText: { color: 'white', fontWeight: 'bold' },
   version: { textAlign: 'center', color: '#52525b', marginTop: 30, fontSize: 12 },
-  loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+  loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  adBanner: {
+    backgroundColor: '#27272a',
+    padding: 15,
+    borderRadius: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });
