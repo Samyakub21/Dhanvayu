@@ -2,7 +2,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { deleteUser, signOut, updateProfile } from 'firebase/auth';
+import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, signOut, updateProfile } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import {
   Bell,
@@ -16,7 +16,7 @@ import {
   Trash2,
   User
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,

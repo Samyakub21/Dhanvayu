@@ -1,3 +1,4 @@
+// firebaseConfig.d.ts
 /* eslint-disable no-unused-vars */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
@@ -56,3 +57,9 @@ const functions = getFunctions(app, 'us-central1'); // replace with region where
 
 export { auth, db, functions };
 
+
+declare module './firebaseConfig' {
+  export const auth: any;
+  export const db: any;
+  // Add other exports as needed with proper types if known
+}

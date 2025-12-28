@@ -2,18 +2,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight, Sparkles, Users, Wallet } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
-    Dimensions, FlatList,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions, FlatList,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Animated, {
-    Extrapolation,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue
 } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
@@ -94,7 +94,7 @@ export default function OnboardingScreen({ onFinish }: { onFinish: () => void })
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#09090b', '#18181b']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#09090b', '#18181b']} style={StyleSheet.absoluteFill} />      
 
       {/* BACKGROUND DECORATION */}
       <View style={styles.bgGlow} />
@@ -144,13 +144,13 @@ export default function OnboardingScreen({ onFinish }: { onFinish: () => void })
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   slide: { width, height: height * 0.75, justifyContent: 'center', alignItems: 'center', padding: 20 },
   bgGlow: {
     position: 'absolute', top: -100, left: -100, width: 400, height: 400,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)', borderRadius: 200, blurRadius: 100
+    backgroundColor: 'rgba(139, 92, 246, 0.15)', borderRadius: 200
+    // blurRadius is not supported in ViewStyle; consider using shadow or a blurred Image if you want a blur effect
   },
   circleGradient: {
     width: 200, height: 200, borderRadius: 100,

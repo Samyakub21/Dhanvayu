@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import { Pressable, Animated, StyleSheet, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { JSX } from 'react/jsx-runtime';
 
 /**
@@ -37,7 +37,7 @@ export default function AnimatedFab(): JSX.Element {
       Animated.timing(scale, { toValue: 0.92, duration: 80, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
-    router.push('/add');
+    router.push('./add');
   };
 
   const ringScale = ring.interpolate({
